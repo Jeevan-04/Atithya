@@ -382,7 +382,8 @@ class _EstatesScreenState extends ConsumerState<EstatesScreen> {
                         const Icon(Icons.star, color: AtithyaColors.imperialGold, size: 10),
                         const SizedBox(width: 3),
                         Text('${estate['rating'] ?? 4.8}',
-                            style: AtithyaTypography.caption.copyWith(fontSize: 10)),
+                            style: AtithyaTypography.caption.copyWith(
+                                color: AtithyaColors.parchment, fontSize: 10)),
                         const Spacer(),
                         Text(_formatPrice(estate['basePrice'] ?? 0),
                             style: AtithyaTypography.labelSmall.copyWith(fontSize: 10)),
@@ -445,7 +446,8 @@ class _EstatesScreenState extends ConsumerState<EstatesScreen> {
                         const Icon(Icons.star, color: AtithyaColors.imperialGold, size: 12),
                         const SizedBox(width: 4),
                         Text('${estate['rating'] ?? 4.8}',
-                            style: AtithyaTypography.caption),
+                            style: AtithyaTypography.caption.copyWith(
+                                color: AtithyaColors.parchment)),
                         const Spacer(),
                         Text('${_formatPrice(estate['basePrice'] ?? 0)}/n',
                             style: AtithyaTypography.labelSmall.copyWith(fontSize: 11)),

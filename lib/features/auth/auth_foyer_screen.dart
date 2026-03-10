@@ -161,15 +161,18 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
   // ── OTP boxes (6 digit visual display) ────────────────────────────────
 
   Widget _buildOtpBoxes(String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(6, (i) {
-        final filled = i < value.length;
-        final current = i == value.length;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.symmetric(horizontal: 5),
-          width: 42, height: 52,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final boxW = ((constraints.maxWidth - 48) / 6).clamp(36.0, 50.0);
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(6, (i) {
+            final filled = i < value.length;
+            final current = i == value.length;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              margin: const EdgeInsets.symmetric(horizontal: 4),
+              width: boxW, height: boxW * 1.2,
           decoration: BoxDecoration(
             color: filled
                 ? AtithyaColors.imperialGold.withValues(alpha: 0.12)
@@ -185,14 +188,15 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
             ),
           ),
           alignment: Alignment.center,
-          child: filled
-              ? Text(value[i],
-                  style: AtithyaTypography.displaySmall.copyWith(
-                      color: AtithyaColors.imperialGold, fontWeight: FontWeight.w600, fontSize: 22))
-              : const SizedBox.shrink(),
+              child: filled
+                  ? Text(value[i],
+                      style: AtithyaTypography.displaySmall.copyWith(
+                          color: AtithyaColors.imperialGold, fontWeight: FontWeight.w600, fontSize: 20))
+                  : const SizedBox.shrink(),
+            );
+          }),
         );
-      }),
-    );
+      },
   }
 
   // ── Panel widgets for each step ────────────────────────────────────────
@@ -210,7 +214,7 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
           const SizedBox(height: 20),
           _buildInput(
             _phoneCtrl, 'Mobile Number', Icons.phone_outlined,
-            type: TextInputType.phone,
+            type: const TextInputType.numberWithOptions(signed: false, decimal: false),
             focusNode: _phoneFocus,
             formatters: [FilteringTextInputFormatter.digitsOnly],
             maxLength: 10,
@@ -258,41 +262,43 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
                   color: AtithyaColors.parchment.withValues(alpha: 0.7))),
           const SizedBox(height: 24),
 
-          // OTP visual boxes
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _otpCtrl,
-            builder: (_, val, __) => _buildOtpBoxes(val.text),
-          ),
-          const SizedBox(height: 12),
-
-          // Hidden OTP input
-          SizedBox(
-            height: 0,
-            child: TextField(
-              controller: _otpCtrl,
-              focusNode: _otpFocus,
-              keyboardType: TextInputType.number,
-              maxLength: 6,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              onChanged: (v) { if (v.length == 6) _verifyOTP(); },
-              decoration: const InputDecoration(
-                border: InputBorder.none, counterText: ''),
-              style: const TextStyle(height: 0, color: Colors.transparent),
-              cursorColor: Colors.transparent,
-              autofocus: true,
-            ),
-          ),
-
-          // Show OTP boxes as tappable
+          // OTP boxes — tapping anywhere opens the number keyboard
           GestureDetector(
             onTap: () => _otpFocus.requestFocus(),
-            child: Container(
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              child: Text('Tap above to enter OTP',
-                  style: AtithyaTypography.caption.copyWith(
-                      color: AtithyaColors.ashWhite.withValues(alpha: 0.45), fontSize: 10)),
+            child: Stack(
+              children: [
+                // Visual boxes
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _otpCtrl,
+                  builder: (_, val, __) => _buildOtpBoxes(val.text),
+                ),
+                // Invisible but real-height TextField so mobile keyboard works
+                Opacity(
+                  opacity: 0.0,
+                  child: SizedBox(
+                    height: 52,
+                    child: TextField(
+                      controller: _otpCtrl,
+                      focusNode: _otpFocus,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          signed: false, decimal: false),
+                      maxLength: 6,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (v) { if (v.length == 6) _verifyOTP(); },
+                      decoration: const InputDecoration(
+                          border: InputBorder.none, counterText: ''),
+                      autofocus: true,
+                    ),
+                  ),
+                ),
+              ],
             ),
+          ),
+          const SizedBox(height: 4),
+          Center(
+            child: Text('Tap boxes to enter OTP',
+                style: AtithyaTypography.caption.copyWith(
+                    color: AtithyaColors.ashWhite.withValues(alpha: 0.45), fontSize: 10)),
           ),
 
           const SizedBox(height: 16),
