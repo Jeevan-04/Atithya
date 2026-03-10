@@ -584,7 +584,7 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
 
                               // Elite member CTA
                               GoldButton(
-                                label: 'SIGN IN',
+                                label: 'ENTER AS ELITE MEMBER',
                                 onTap: () {
                                   _phoneCtrl.clear(); _otpCtrl.clear();
                                   setState(() { _showEntryPanel = true; _isStaffMode = false; _isSignupMode = false; });
@@ -596,26 +596,14 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
                               const SizedBox(height: 12),
 
                               // Create Account CTA
-                              GestureDetector(
+                              GoldButton(
+                                label: 'CREATE AN ACCOUNT',
                                 onTap: () {
                                   _phoneCtrl.clear(); _otpCtrl.clear();
                                   setState(() { _showEntryPanel = true; _isStaffMode = false; _isSignupMode = true; });
                                   WidgetsBinding.instance.addPostFrameCallback(
                                       (_) => _phoneFocus.requestFocus());
                                 },
-                                child: Container(
-                                  height: 52,
-                                  decoration: BoxDecoration(
-                                    border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.55)),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  alignment: Alignment.center,
-                                  child: Text('CREATE AN ACCOUNT',
-                                      style: AtithyaTypography.labelSmall.copyWith(
-                                          color: AtithyaColors.imperialGold,
-                                          letterSpacing: 3,
-                                          fontWeight: FontWeight.w600)),
-                                ),
                               ).animate().fadeIn(duration: 800.ms, delay: 1100.ms)
                                .slideY(begin: 0.1, end: 0),
                               const SizedBox(height: 14),
