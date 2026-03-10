@@ -269,33 +269,38 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
           // OTP boxes — tapping anywhere opens the number keyboard
           GestureDetector(
             onTap: () => _otpFocus.requestFocus(),
-            child: Stack(
-              children: [
-                // Visual boxes
-                ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: _otpCtrl,
-                  builder: (_, val, __) => _buildOtpBoxes(val.text),
-                ),
-                // Invisible but real-height TextField so mobile keyboard works
-                Opacity(
-                  opacity: 0.0,
-                  child: SizedBox(
-                    height: 52,
-                    child: TextField(
-                      controller: _otpCtrl,
-                      focusNode: _otpFocus,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          signed: false, decimal: false),
-                      maxLength: 6,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      onChanged: (v) { if (v.length == 6) _verifyOTP(); },
-                      decoration: const InputDecoration(
-                          border: InputBorder.none, counterText: ''),
-                      autofocus: true,
+            child: SizedBox(
+              width: double.infinity,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Visual boxes
+                  ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _otpCtrl,
+                    builder: (_, val, __) => _buildOtpBoxes(val.text),
+                  ),
+                  // Invisible real TextField so mobile keyboard opens on focus
+                  Opacity(
+                    opacity: 0.0,
+                    child: SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: TextField(
+                        controller: _otpCtrl,
+                        focusNode: _otpFocus,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            signed: false, decimal: false),
+                        maxLength: 6,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        onChanged: (v) { if (v.length == 6) _verifyOTP(); },
+                        decoration: const InputDecoration(
+                            border: InputBorder.none, counterText: ''),
+                        autofocus: true,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 4),

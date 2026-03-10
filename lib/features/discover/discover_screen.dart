@@ -894,11 +894,15 @@ class _EstateCard extends StatelessWidget {
                             color: AtithyaColors.imperialGold
                                 .withValues(alpha: 0.75)),
                         const SizedBox(width: 3),
-                        Text(city,
-                            style: AtithyaTypography.labelMicro.copyWith(
-                                color: Colors.white.withValues(alpha: 0.65),
-                                fontSize: 11)),
-                        const Spacer(),
+                        Flexible(
+                          child: Text(city,
+                              style: AtithyaTypography.labelMicro.copyWith(
+                                  color: Colors.white.withValues(alpha: 0.65),
+                                  fontSize: 11),
+                              overflow: TextOverflow.ellipsis,
+                              maxLines: 1),
+                        ),
+                        const SizedBox(width: 8),
                         Icon(Icons.star_rounded,
                             size: 12, color: AtithyaColors.shimmerGold),
                         const SizedBox(width: 3),
@@ -906,14 +910,14 @@ class _EstateCard extends StatelessWidget {
                             style: AtithyaTypography.labelMicro.copyWith(
                                 color: AtithyaColors.shimmerGold,
                                 fontSize: 11)),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 8),
                         Text('₹${_fmt(basePrice)}',
                             style: AtithyaTypography.cardTitle.copyWith(
                               color: AtithyaColors.imperialGold,
-                              fontSize: 15,
+                              fontSize: 14,
                               fontWeight: FontWeight.w700,
                             )),
-                        Text('/night',
+                        Text('/n',
                             style: AtithyaTypography.labelMicro.copyWith(
                                 color: Colors.white.withValues(alpha: 0.55),
                                 fontSize: 10)),

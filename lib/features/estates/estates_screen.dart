@@ -384,9 +384,13 @@ class _EstatesScreenState extends ConsumerState<EstatesScreen> {
                         Text('${estate['rating'] ?? 4.8}',
                             style: AtithyaTypography.caption.copyWith(
                                 color: AtithyaColors.parchment, fontSize: 10)),
-                        const Spacer(),
-                        Text(_formatPrice(estate['basePrice'] ?? 0),
-                            style: AtithyaTypography.labelSmall.copyWith(fontSize: 10)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(_formatPrice(estate['basePrice'] ?? 0),
+                              textAlign: TextAlign.end,
+                              overflow: TextOverflow.ellipsis,
+                              style: AtithyaTypography.labelSmall.copyWith(fontSize: 10)),
+                        ),
                       ],
                     ),
                   ],
@@ -448,9 +452,13 @@ class _EstatesScreenState extends ConsumerState<EstatesScreen> {
                         Text('${estate['rating'] ?? 4.8}',
                             style: AtithyaTypography.caption.copyWith(
                                 color: AtithyaColors.parchment)),
-                        const Spacer(),
-                        Text('${_formatPrice(estate['basePrice'] ?? 0)}/n',
-                            style: AtithyaTypography.labelSmall.copyWith(fontSize: 11)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text('${_formatPrice(estate['basePrice'] ?? 0)}/n',
+                              textAlign: TextAlign.end,
+                              overflow: TextOverflow.ellipsis,
+                              style: AtithyaTypography.labelSmall.copyWith(fontSize: 11)),
+                        ),
                       ],
                     ),
                   ],
