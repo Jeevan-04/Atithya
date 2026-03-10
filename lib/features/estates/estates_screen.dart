@@ -343,20 +343,27 @@ class _EstatesScreenState extends ConsumerState<EstatesScreen> {
                           gradient: const LinearGradient(colors: [AtithyaColors.burnishedGold, AtithyaColors.shimmerGold]),
                           borderRadius: BorderRadius.circular(3),
                         ),
-                        child: Text('✦', style: TextStyle(fontSize: 8, color: AtithyaColors.obsidian)),
+                        child: Text('FEATURED', style: TextStyle(
+                            fontFamily: 'Inter', fontSize: 6,
+                            fontWeight: FontWeight.w700, letterSpacing: 1,
+                            color: AtithyaColors.obsidian)),
                       ),
                     ),
                   Positioned(
                     top: 8, right: 8,
                     child: Container(
-                      constraints: const BoxConstraints(maxWidth: 76),
+                      constraints: const BoxConstraints(maxWidth: 88),
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                           color: AtithyaColors.royalMaroon.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(3)),
                       child: Text((estate['category'] ?? '').toUpperCase(),
-                          style: AtithyaTypography.labelMicro.copyWith(
-                              color: AtithyaColors.shimmerGold, fontSize: 7),
+                          style: TextStyle(
+                              fontFamily: 'Inter',
+                              fontSize: 7,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.8,
+                              color: AtithyaColors.shimmerGold),
                           maxLines: 2,
                           textAlign: TextAlign.center,
                           overflow: TextOverflow.ellipsis),
