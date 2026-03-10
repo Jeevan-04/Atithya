@@ -3,11 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
-  // Override at build time: flutter build web --dart-define=API_BASE_URL=https://your-backend.com/api
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://atithya-nzqy.onrender.com/api',
-  );
+  static const String baseUrl = 'https://atithya-nzqy.onrender.com/api';
 
   Future<Map<String, String>> _getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
