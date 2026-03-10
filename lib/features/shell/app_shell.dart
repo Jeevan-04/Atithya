@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
 import '../../providers/locale_provider.dart';
+import '../calendar/calendar_screen.dart';
 import '../concierge/concierge_modal.dart';
 import '../discover/discover_screen.dart';
 import '../estates/estates_screen.dart';
@@ -34,21 +34,23 @@ class _AppShellState extends ConsumerState<AppShell> with TickerProviderStateMix
   double _toFrac   = 0.125;
 
   static const List<_NavIconItem> _navIcons = [
-    _NavIconItem(icon: Icons.explore_outlined,        activeIcon: Icons.explore,         key: 'nav.discover'),
-    _NavIconItem(icon: Icons.domain_outlined,         activeIcon: Icons.domain,          key: 'nav.palaces'),
-    _NavIconItem(icon: Icons.card_travel_outlined,    activeIcon: Icons.card_travel,     key: 'nav.journeys'),
-    _NavIconItem(icon: Icons.account_circle_outlined, activeIcon: Icons.account_circle,  key: 'nav.sanctum'),
+    _NavIconItem(icon: Icons.explore_outlined,        activeIcon: Icons.explore,            key: 'nav.discover'),
+    _NavIconItem(icon: Icons.domain_outlined,         activeIcon: Icons.domain,             key: 'nav.palaces'),
+    _NavIconItem(icon: Icons.calendar_month_outlined, activeIcon: Icons.calendar_month,     key: 'nav.calendar'),
+    _NavIconItem(icon: Icons.card_travel_outlined,    activeIcon: Icons.card_travel,        key: 'nav.journeys'),
+    _NavIconItem(icon: Icons.account_circle_outlined, activeIcon: Icons.account_circle,     key: 'nav.sanctum'),
   ];
 
   final List<Widget> _screens = const [
     DiscoverScreen(),
     EstatesScreen(),
+    CalendarScreen(),
     ItinerariesScreen(),
     SanctumScreen(),
   ];
 
-  // fraction = (index + 0.5) / 4  →  center of each quarter slot
-  static double _fracFor(int i) => (i + 0.5) / 4;
+  // fraction = (index + 0.5) / 5  →  center of each fifth slot
+  static double _fracFor(int i) => (i + 0.5) / 5;
 
   @override
   void initState() {

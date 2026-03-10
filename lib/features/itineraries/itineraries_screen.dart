@@ -12,6 +12,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/trip_provider.dart';
+import '../booking/booking_detail_screen.dart';
 import '../trip/journey_detail_screen.dart';
 import '../trip/trip_planner_screen.dart';
 
@@ -199,7 +200,15 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
       itemCount: bookingState.bookings.length,
       itemBuilder: (ctx, i) => Padding(
         padding: const EdgeInsets.only(bottom: 20),
-        child: _buildBookingCard(bookingState.bookings[i], i),
+        child: GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BookingDetailScreen(booking: bookingState.bookings[i] as Map<String, dynamic>),
+            ),
+          ),
+          child: _buildBookingCard(bookingState.bookings[i], i),
+        ),
       ),
     );
   }

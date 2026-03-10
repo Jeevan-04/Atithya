@@ -648,9 +648,12 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
 
                     const SizedBox(height: 8),
 
-                    Text('CONFIRMED', style: AtithyaTypography.heroTitle.copyWith(fontSize: 44))
-                        .animate().fadeIn(duration: 1000.ms, delay: 600.ms)
-                        .slideY(begin: 0.2, end: 0, duration: 800.ms, delay: 600.ms),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text('CONFIRMED',
+                        style: AtithyaTypography.heroTitle.copyWith(fontSize: 44)),
+                    ).animate().fadeIn(duration: 1000.ms, delay: 600.ms)
+                     .slideY(begin: 0.2, end: 0, duration: 800.ms, delay: 600.ms),
 
                     const SizedBox(height: 20),
 
@@ -673,8 +676,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
                     GoldButton(
                       label: 'VIEW ITINERARY',
                       onTap: () {
-                        // Switch to Journeys tab (index 2) and pop to AppShell
-                        ref.read(shellTabProvider.notifier).switchTo(2);
+                        // Switch to Journeys tab (index 3) and pop to AppShell
+                        ref.read(shellTabProvider.notifier).switchTo(3);
                         Navigator.of(context).popUntil((route) => route.isFirst);
                       },
                     ).animate().fadeIn(duration: 800.ms, delay: 1500.ms),

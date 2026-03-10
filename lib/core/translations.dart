@@ -16,7 +16,7 @@ class AppTranslations {
     // ── English ──────────────────────────────────────────────────────────────
     'English': {
       'nav.discover': 'Discover', 'nav.palaces': 'Palaces',
-      'nav.journeys': 'Journeys', 'nav.sanctum': 'Sanctum',
+      'nav.journeys': 'Journeys', 'nav.sanctum': 'Sanctum', 'nav.calendar': 'Calendar',
       'disc.popular': 'POPULAR DESTINATIONS', 'disc.nearCity': 'NEAR YOUR CITY',
       'disc.nearby': 'NEARBY', 'disc.region': 'IN YOUR REGION',
       'disc.nearYou': 'NEAR YOU', 'disc.search': 'Search destinations\u2026',

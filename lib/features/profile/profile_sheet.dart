@@ -9,6 +9,7 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/booking_provider.dart';
 import '../admin/admin_panel_sheet.dart';
 import '../auth/auth_foyer_screen.dart';
+import '../booking/booking_detail_screen.dart';
 
 class ProfileSheet extends ConsumerStatefulWidget {
   const ProfileSheet({super.key});
@@ -312,7 +313,14 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
         ? AtithyaColors.success
         : AtithyaColors.ashWhite;
 
-    return Container(
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => BookingDetailScreen(booking: b),
+        ),
+      ),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: AtithyaColors.darkSurface,
@@ -327,8 +335,11 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
             decoration: BoxDecoration(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
               image: DecorationImage(
-                image: AssetImage(
-                  'assets/images/pin${(i % 5) + 1}_${['exterior', 'interior', 'details', 'suite', 'arch'][i % 5]}.jpg',
+                image: NetworkImage(
+                  (b['estate']['heroImage'] as String?) ??
+                      ((b['estate']['images'] as List?)?.isNotEmpty == true
+                          ? b['estate']['images'][0] as String
+                          : ''),
                 ),
                 fit: BoxFit.cover,
               ),
@@ -406,6 +417,7 @@ class _ProfileSheetState extends ConsumerState<ProfileSheet> {
     )
         .animate()
         .fadeIn(duration: 600.ms, delay: Duration(milliseconds: 200 * i))
-        .slideY(begin: 0.15, end: 0, duration: 600.ms, delay: Duration(milliseconds: 200 * i));
+        .slideY(begin: 0.15, end: 0, duration: 600.ms, delay: Duration(milliseconds: 200 * i)),
+    );
   }
 }
