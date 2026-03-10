@@ -18,7 +18,6 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.0'
           channel: 'stable'
           cache: true
 
@@ -30,7 +29,9 @@ jobs:
           flutter build web \
             --base-href /Atithya/ \
             --no-tree-shake-icons \
-            --dart-define=API_BASE_URL=${{ secrets.API_BASE_URL || 'http://127.0.0.1:5555/api' }}
+            --dart-define=API_BASE_URL=${API_BASE_URL:-http://127.0.0.1:5555/api}
+        env:
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
