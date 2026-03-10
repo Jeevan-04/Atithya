@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
+import '../../core/widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../auth/auth_foyer_screen.dart';
@@ -290,8 +291,8 @@ class _RouteCard extends StatelessWidget {
                               .withValues(alpha: 0.35)),
                     ),
                     child: Center(
-                      child: Text(icon,
-                          style: const TextStyle(fontSize: 24)),
+                      child: Icon(journeyIcon(icon),
+                          color: AtithyaColors.imperialGold, size: 26),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -1099,8 +1100,8 @@ class _RouteDetailScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const SizedBox(height: 40),
-                      Text(icon,
-                          style: const TextStyle(fontSize: 40)),
+                      Icon(journeyIcon(icon),
+                          color: AtithyaColors.imperialGold, size: 44),
                       const SizedBox(height: 8),
                       Text(name,
                           style: AtithyaTypography.displayMedium.copyWith(

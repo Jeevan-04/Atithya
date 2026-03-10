@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
+import '../../core/widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../auth/auth_foyer_screen.dart';
@@ -202,7 +203,8 @@ class _JourneyDetailScreenState extends ConsumerState<JourneyDetailScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(icon, style: const TextStyle(fontSize: 32)),
+                            Icon(journeyIcon(icon),
+                                color: AtithyaColors.imperialGold, size: 36),
                             const SizedBox(width: 14),
                             Expanded(
                               child: Column(

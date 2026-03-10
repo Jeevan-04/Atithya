@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
+import '../../core/widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -225,7 +226,7 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
                 color: AtithyaColors.darkSurface,
                 border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.2)),
               ),
-              child: const Text('🗺️', style: TextStyle(fontSize: 36)),
+              child: const Icon(Icons.map_outlined, color: AtithyaColors.imperialGold, size: 36),
             ),
             const SizedBox(height: 24),
             Text('No Journeys Planned', style: AtithyaTypography.displaySmall),
@@ -299,7 +300,7 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
                       color: AtithyaColors.obsidian,
                       border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.35)),
                     ),
-                    child: Center(child: Text(icon, style: const TextStyle(fontSize: 22))),
+                    child: Center(child: Icon(journeyIcon(icon), color: AtithyaColors.imperialGold, size: 24)),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -1040,7 +1041,7 @@ class _PlanTripLauncher extends ConsumerWidget {
                       gradient: const RadialGradient(colors: [Color(0xFF2A1808), AtithyaColors.obsidian]),
                       border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.5)),
                     ),
-                    child: const Center(child: Text('✏️', style: TextStyle(fontSize: 24))),
+                    child: const Center(child: Icon(Icons.edit_rounded, color: AtithyaColors.imperialGold, size: 26)),
                   ),
                   const SizedBox(width: 18),
                   Expanded(
@@ -1100,7 +1101,7 @@ class _PlanTripLauncher extends ConsumerWidget {
                   ),
                   child: Row(
                     children: [
-                      Text(r['icon'] as String, style: const TextStyle(fontSize: 26)),
+                      Icon(journeyIcon(r['icon'] as String?), color: AtithyaColors.imperialGold, size: 26),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(

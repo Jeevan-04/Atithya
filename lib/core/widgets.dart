@@ -250,3 +250,34 @@ class _GoldButtonState extends State<GoldButton> with SingleTickerProviderStateM
     );
   }
 }
+
+// ── Journey icon helper ───────────────────────────────────────────────────────
+/// Maps a route icon emoji or key string to a themed [IconData].
+IconData journeyIcon(String? key) {
+  switch (key) {
+    case '👑':
+    case 'royal_rajasthan':
+    case 'royal':
+      return Icons.workspace_premium_outlined;
+    case '🏛️':
+    case '🏛':
+    case 'golden_triangle':
+    case 'cultural':
+      return Icons.account_balance_outlined;
+    case '🌴':
+    case 'kerala_backwaters':
+    case 'nature':
+      return Icons.forest_outlined;
+    case '🏔️':
+    case '🏔':
+    case 'himalayan_escape':
+    case 'mountain':
+      return Icons.landscape_outlined;
+    case '🙏':
+    case 'char_dham':
+    case 'spiritual':
+      return Icons.self_improvement_outlined;
+    default:
+      return Icons.map_outlined;
+  }
+}
