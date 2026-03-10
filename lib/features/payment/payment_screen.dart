@@ -677,7 +677,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
                       label: 'VIEW ITINERARY',
                       onTap: () {
                         // Switch to Journeys tab (index 3) and pop to AppShell
-                        ref.read(shellTabProvider.notifier).switchTo(3);
+                        ref.read(shellTabProvider.notifier).switchTo(2);
                         Navigator.of(context).popUntil((route) => route.isFirst);
                       },
                     ).animate().fadeIn(duration: 800.ms, delay: 1500.ms),

@@ -13,6 +13,7 @@ import '../../providers/booking_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/trip_provider.dart';
 import '../booking/booking_detail_screen.dart';
+import '../calendar/calendar_screen.dart';
 import '../trip/journey_detail_screen.dart';
 import '../trip/trip_planner_screen.dart';
 
@@ -31,7 +32,7 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 4, vsync: this);
     Future.microtask(() {
       final authState = ref.read(authProvider);
       if (authState.isAuthenticated) {
@@ -69,6 +70,7 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
               controller: _tabCtrl,
               children: [
                 _buildBookingsTab(bookingState, locale),
+                const CalendarScreen(),
                 _buildMyTripsTab(locale),
                 const _PlanTripLauncher(),
               ],
@@ -153,6 +155,7 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
             unselectedLabelColor: AtithyaColors.parchment,
             tabs: [
               Tab(text: locale.t('it.bookings')),
+              const Tab(text: 'CALENDAR'),
               Tab(text: locale.t('it.myTrips')),
               Tab(text: locale.t('it.plan')),
             ],

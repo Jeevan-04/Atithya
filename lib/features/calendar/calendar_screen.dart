@@ -7,9 +7,7 @@ import '../../core/colors.dart';
 import '../../core/typography.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/booking_provider.dart';
-import '../auth/auth_foyer_screen.dart';
 import '../booking/booking_detail_screen.dart';
-import '../../core/widgets.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -104,69 +102,26 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authProvider);
-    if (!authState.isAuthenticated) return _buildGuestPrompt();
-
     final bookingState = ref.watch(bookingProvider);
     final allBookings = bookingState.bookings;
     final monthBookings = allBookings.where((b) => _overlapsMonth(b as Map)).toList();
 
-    return Scaffold(
-      backgroundColor: AtithyaColors.obsidian,
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(),
-        slivers: [
-          _buildHeader(),
-          SliverToBoxAdapter(child: bookingState.isLoading
-            ? const Padding(padding: EdgeInsets.all(80),
-                child: Center(child: CircularProgressIndicator(color: AtithyaColors.imperialGold, strokeWidth: 1)))
-            : Column(children: [
-                _buildCalendar(allBookings),
-                _buildGantt(monthBookings),
-                _buildSpending(allBookings),
-                const SizedBox(height: 120),
-              ])),
-        ],
-      ),
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(child: bookingState.isLoading
+          ? const Padding(padding: EdgeInsets.all(80),
+              child: Center(child: CircularProgressIndicator(color: AtithyaColors.imperialGold, strokeWidth: 1)))
+          : Column(children: [
+              _buildCalendar(allBookings),
+              _buildGantt(monthBookings),
+              _buildSpending(allBookings),
+              const SizedBox(height: 120),
+            ])),
+      ],
     );
   }
 
-  Widget _buildHeader() {
-    return SliverAppBar(
-      pinned: true,
-      backgroundColor: AtithyaColors.obsidian,
-      elevation: 0,
-      toolbarHeight: 0,
-      expandedHeight: 140,
-      flexibleSpace: FlexibleSpaceBar(
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft, end: Alignment.bottomRight,
-              colors: [Color(0xFF0C0E12), Color(0xFF1A1008), Color(0xFF0D0D14)],
-            ),
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Container(width: 24, height: 1.5, color: AtithyaColors.imperialGold),
-                  const SizedBox(width: 8),
-                  Text('MY CALENDAR', style: AtithyaTypography.labelSmall.copyWith(
-                    color: AtithyaColors.imperialGold, letterSpacing: 4, fontSize: 10)),
-                ]),
-                const SizedBox(height: 8),
-                Text('Stays & Spending', style: AtithyaTypography.heroTitle.copyWith(
-                  fontSize: 30, color: AtithyaColors.pearl)),
-              ]),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   // ── Calendar Grid ──────────────────────────────────────────────────────────
 
@@ -704,31 +659,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     if (amt >= 100000) return '${(amt / 100000).toStringAsFixed(1)}L';
     if (amt >= 1000) return '${(amt / 1000).toStringAsFixed(0)}K';
     return amt.toStringAsFixed(0);
-  }
-
-  Widget _buildGuestPrompt() {
-    return Scaffold(
-      backgroundColor: AtithyaColors.obsidian,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(40),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            const Icon(Icons.calendar_month_outlined, color: AtithyaColors.ashWhite, size: 56),
-            const SizedBox(height: 24),
-            Text('Your Stay Calendar', style: AtithyaTypography.displayMedium),
-            const SizedBox(height: 12),
-            Text('Sign in to view your bookings, Gantt timeline, and spending history.',
-              style: AtithyaTypography.bodyElegant.copyWith(color: AtithyaColors.ashWhite),
-              textAlign: TextAlign.center),
-            const SizedBox(height: 32),
-            GoldButton(
-              label: 'SIGN IN',
-              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AuthFoyerScreen())),
-            ),
-          ]),
-        ),
-      ),
-    );
   }
 }
 
