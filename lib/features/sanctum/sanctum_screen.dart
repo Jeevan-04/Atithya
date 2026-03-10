@@ -861,7 +861,7 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet>
     final locale = ref.watch(localeProvider);
 
     final authUser = ref.watch(authProvider).user;
-    final isGuest = authUser == null || (authUser['role'] as String? ?? '') == 'guest';
+    final isGuest = authUser == null || authUser['phoneNumber'] == 'Guest';
     if (isGuest) {
       return Container(
         constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),

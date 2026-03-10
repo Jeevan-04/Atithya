@@ -22,7 +22,7 @@ class _ReservationModalState extends ConsumerState<ReservationModal> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final isGuest = authState.user == null || authState.user!['role'] == 'guest';
+    final isGuest = authState.user == null || authState.user!['phoneNumber'] == 'Guest';
     final bookingState = ref.watch(bookingProvider);
     final price = widget.estate['basePrice'] ?? 0;
 

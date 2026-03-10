@@ -410,7 +410,7 @@ class _DossierScreenState extends ConsumerState<DossierScreen>
                             onTap: () {
                               final user = ref.read(authProvider).user;
                               final isGuest = user == null ||
-                                  (user['role'] as String? ?? '') == 'guest';
+                                  user['phoneNumber'] == 'Guest';
                               if (isGuest) {
                                 _showLoginPrompt(context);
                                 return;
