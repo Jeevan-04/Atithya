@@ -6,7 +6,7 @@ class ApiClient {
   // Override at build time: flutter build web --dart-define=API_BASE_URL=https://your-backend.com/api
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://127.0.0.1:5555/api',
+    defaultValue: 'https://atithya-nzqy.onrender.com/api',
   );
 
   Future<Map<String, String>> _getHeaders() async {
