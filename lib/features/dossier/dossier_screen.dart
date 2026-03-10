@@ -17,7 +17,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
+import '../../core/widgets.dart';
 import '../../providers/locale_provider.dart';
+import '../../providers/auth_provider.dart';
+import '../auth/auth_foyer_screen.dart';
 import '../booking/booking_flow_screen.dart';
 import '../concierge/concierge_modal.dart';
 
@@ -404,9 +407,17 @@ class _DossierScreenState extends ConsumerState<DossierScreen>
                         const SizedBox(width: 12),
                         Expanded(
                           child: GestureDetector(
-                            onTap: () => Navigator.push(context,
-                              MaterialPageRoute(builder: (_) => BookingFlowScreen(estate: widget.estate)),
-                            ),
+                            onTap: () {
+                              final user = ref.read(authProvider).user;
+                              final isGuest = user == null ||
+                                  (user['role'] as String? ?? '') == 'guest';
+                              if (isGuest) {
+                                _showLoginPrompt(context);
+                                return;
+                              }
+                              Navigator.push(context,
+                                MaterialPageRoute(builder: (_) => BookingFlowScreen(estate: widget.estate)));
+                            },
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
                               decoration: BoxDecoration(
@@ -430,6 +441,66 @@ class _DossierScreenState extends ConsumerState<DossierScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showLoginPrompt(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        decoration: const BoxDecoration(
+          color: Color(0xFF111318),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border(
+            top: BorderSide(color: AtithyaColors.imperialGold, width: 0.5),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 3,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: AtithyaColors.imperialGold.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Container(
+              width: 60, height: 60,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AtithyaColors.darkSurface,
+                border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.3)),
+              ),
+              child: const Icon(Icons.lock_outline, color: AtithyaColors.imperialGold, size: 28),
+            ),
+            const SizedBox(height: 16),
+            Text('Login Required',
+                style: AtithyaTypography.displaySmall.copyWith(fontSize: 18)),
+            const SizedBox(height: 8),
+            Text(
+              'Please sign in or create an account to book this estate and access exclusive privileges.',
+              style: AtithyaTypography.bodyElegant.copyWith(
+                  color: AtithyaColors.ashWhite, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            GoldButton(
+              label: 'SIGN IN / CREATE ACCOUNT',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const AuthFoyerScreen()));
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

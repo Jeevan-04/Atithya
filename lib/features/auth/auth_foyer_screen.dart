@@ -23,6 +23,7 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
 
   // local UI state
   bool _isStaffMode = false;
+  bool _isSignupMode = false;
   bool _showEntryPanel = false; // true = show phone/OTP/name panels
 
   // controllers
@@ -113,7 +114,7 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
       _otpCtrl.clear();
       ref.read(authProvider.notifier).goBack();
     } else {
-      setState(() { _showEntryPanel = false; _isStaffMode = false; });
+      setState(() { _showEntryPanel = false; _isStaffMode = false; _isSignupMode = false; });
       ref.read(authProvider.notifier).clearError();
     }
   }
@@ -211,9 +212,11 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('ELITE MEMBER ACCESS',
+          Text(_isSignupMode ? 'CREATE YOUR ACCOUNT' : 'ELITE MEMBER ACCESS',
               style: AtithyaTypography.labelMicro.copyWith(
                   color: AtithyaColors.imperialGold, letterSpacing: 5)),
+          if (_isSignupMode) ...[const SizedBox(height: 4), Text('Enter your mobile number to get started.',
+              style: AtithyaTypography.caption.copyWith(color: AtithyaColors.parchment.withValues(alpha: 0.7)))],
           const SizedBox(height: 20),
           _buildInput(
             _phoneCtrl, 'Mobile Number', Icons.phone_outlined,
@@ -581,15 +584,40 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
 
                               // Elite member CTA
                               GoldButton(
-                                label: 'ENTER AS ELITE MEMBER',
+                                label: 'SIGN IN',
                                 onTap: () {
                                   _phoneCtrl.clear(); _otpCtrl.clear();
-                                  setState(() { _showEntryPanel = true; _isStaffMode = false; });
+                                  setState(() { _showEntryPanel = true; _isStaffMode = false; _isSignupMode = false; });
                                   WidgetsBinding.instance.addPostFrameCallback(
                                       (_) => _phoneFocus.requestFocus());
                                 },
                               ).animate().fadeIn(duration: 800.ms, delay: 1000.ms)
                                .slideY(begin: 0.15, end: 0),
+                              const SizedBox(height: 12),
+
+                              // Create Account CTA
+                              GestureDetector(
+                                onTap: () {
+                                  _phoneCtrl.clear(); _otpCtrl.clear();
+                                  setState(() { _showEntryPanel = true; _isStaffMode = false; _isSignupMode = true; });
+                                  WidgetsBinding.instance.addPostFrameCallback(
+                                      (_) => _phoneFocus.requestFocus());
+                                },
+                                child: Container(
+                                  height: 52,
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.55)),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  alignment: Alignment.center,
+                                  child: Text('CREATE AN ACCOUNT',
+                                      style: AtithyaTypography.labelSmall.copyWith(
+                                          color: AtithyaColors.imperialGold,
+                                          letterSpacing: 3,
+                                          fontWeight: FontWeight.w600)),
+                                ),
+                              ).animate().fadeIn(duration: 800.ms, delay: 1100.ms)
+                               .slideY(begin: 0.1, end: 0),
                               const SizedBox(height: 14),
 
                               // Guest CTA

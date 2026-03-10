@@ -349,13 +349,17 @@ class _EstatesScreenState extends ConsumerState<EstatesScreen> {
                   Positioned(
                     top: 8, right: 8,
                     child: Container(
+                      constraints: const BoxConstraints(maxWidth: 76),
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                       decoration: BoxDecoration(
                           color: AtithyaColors.royalMaroon.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(3)),
                       child: Text((estate['category'] ?? '').toUpperCase(),
                           style: AtithyaTypography.labelMicro.copyWith(
-                              color: AtithyaColors.shimmerGold, fontSize: 7)),
+                              color: AtithyaColors.shimmerGold, fontSize: 7),
+                          maxLines: 2,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.ellipsis),
                     ),
                   ),
                 ],

@@ -860,6 +860,51 @@ class _NotificationsSheetState extends ConsumerState<_NotificationsSheet>
     final unread = notifState.unreadCount;
     final locale = ref.watch(localeProvider);
 
+    final authUser = ref.watch(authProvider).user;
+    final isGuest = authUser == null || (authUser['role'] as String? ?? '') == 'guest';
+    if (isGuest) {
+      return Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.5),
+        decoration: const BoxDecoration(
+          color: Color(0xFF111318),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          border: Border(top: BorderSide(color: AtithyaColors.imperialGold, width: 0.5)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _sheetHandle('NOTIFICATIONS'),
+            const SizedBox(height: 24),
+            const Icon(Icons.notifications_off_outlined, color: AtithyaColors.ashWhite, size: 48),
+            const SizedBox(height: 16),
+            Text(
+              'Login to View Notifications',
+              style: AtithyaTypography.displaySmall.copyWith(fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your personal booking alerts, reminders and concierge messages will appear here after signing in.',
+              style: AtithyaTypography.bodyElegant.copyWith(color: AtithyaColors.ashWhite, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            GoldButton(
+              label: 'SIGN IN / CREATE ACCOUNT',
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AuthFoyerScreen()),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
