@@ -172,31 +172,35 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
             return AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: boxW, height: boxW * 1.2,
-          decoration: BoxDecoration(
-            color: filled
-                ? AtithyaColors.imperialGold.withValues(alpha: 0.12)
-                : AtithyaColors.surfaceElevated.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: current
-                  ? AtithyaColors.imperialGold
-                  : filled
-                      ? AtithyaColors.burnishedGold.withValues(alpha: 0.7)
-                      : AtithyaColors.imperialGold.withValues(alpha: 0.2),
-              width: current ? 1.5 : 1,
-            ),
-          ),
-          alignment: Alignment.center,
+              width: boxW,
+              height: boxW * 1.2,
+              decoration: BoxDecoration(
+                color: filled
+                    ? AtithyaColors.imperialGold.withValues(alpha: 0.12)
+                    : AtithyaColors.surfaceElevated.withValues(alpha: 0.4),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: current
+                      ? AtithyaColors.imperialGold
+                      : filled
+                          ? AtithyaColors.burnishedGold.withValues(alpha: 0.7)
+                          : AtithyaColors.imperialGold.withValues(alpha: 0.2),
+                  width: current ? 1.5 : 1,
+                ),
+              ),
+              alignment: Alignment.center,
               child: filled
                   ? Text(value[i],
                       style: AtithyaTypography.displaySmall.copyWith(
-                          color: AtithyaColors.imperialGold, fontWeight: FontWeight.w600, fontSize: 20))
+                          color: AtithyaColors.imperialGold,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 20))
                   : const SizedBox.shrink(),
             );
           }),
         );
       },
+    );
   }
 
   // ── Panel widgets for each step ────────────────────────────────────────
