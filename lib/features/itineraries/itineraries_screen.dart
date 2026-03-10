@@ -32,7 +32,7 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 4, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
     Future.microtask(() {
       final authState = ref.read(authProvider);
       if (authState.isAuthenticated) {
@@ -70,7 +70,6 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
               controller: _tabCtrl,
               children: [
                 _buildBookingsTab(bookingState, locale),
-                const CalendarScreen(),
                 _buildMyTripsTab(locale),
                 const _PlanTripLauncher(),
               ],
@@ -155,7 +154,6 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
             unselectedLabelColor: AtithyaColors.parchment,
             tabs: [
               Tab(text: locale.t('it.bookings')),
-              const Tab(text: 'CALENDAR'),
               Tab(text: locale.t('it.myTrips')),
               Tab(text: locale.t('it.plan')),
             ],
@@ -165,54 +163,86 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
   }
 
   Widget _buildBookingsTab(bookingState, LocaleState locale) {
-    if (bookingState.isLoading) {
-      return const Center(
-        child: SizedBox(
-          width: 28, height: 28,
-          child: CircularProgressIndicator(strokeWidth: 2, color: AtithyaColors.imperialGold),
-        ),
-      );
-    }
-    if (bookingState.bookings.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 80, height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AtithyaColors.darkSurface,
-                border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.2)),
-              ),
-              child: const Icon(Icons.bookmark_border_outlined,
-                  color: AtithyaColors.imperialGold, size: 36),
-            ),
-            const SizedBox(height: 24),
-            Text('No Sanctuaries Booked', style: AtithyaTypography.displaySmall),
-            const SizedBox(height: 8),
-            Text('Your royal escapes will appear here.',
-                style: AtithyaTypography.bodyElegant.copyWith(color: AtithyaColors.ashWhite)),
-          ],
-        ).animate().fadeIn(duration: 700.ms),
-      );
-    }
-    return ListView.builder(
+    return CustomScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).padding.bottom + 20),
-      itemCount: bookingState.bookings.length,
-      itemBuilder: (ctx, i) => Padding(
-        padding: const EdgeInsets.only(bottom: 20),
-        child: GestureDetector(
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => BookingDetailScreen(booking: bookingState.bookings[i] as Map<String, dynamic>),
+      slivers: [
+        // Calendar + Gantt + Spending fused at top
+        const SliverToBoxAdapter(child: CalendarScreen()),
+
+        // Section header
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+            child: Row(children: [
+              Container(width: 3, height: 16, color: AtithyaColors.royalMaroon),
+              const SizedBox(width: 12),
+              Text('MY BOOKINGS', style: AtithyaTypography.labelMicro.copyWith(
+                  color: AtithyaColors.imperialGold, letterSpacing: 4)),
+            ]),
+          ),
+        ),
+
+        // Loading
+        if (bookingState.isLoading)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: SizedBox(width: 28, height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AtithyaColors.imperialGold))),
+            ),
+          )
+
+        // Empty
+        else if (bookingState.bookings.isEmpty)
+          SliverToBoxAdapter(
+            child: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 80, height: 80,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AtithyaColors.darkSurface,
+                      border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.2)),
+                    ),
+                    child: const Icon(Icons.bookmark_border_outlined,
+                        color: AtithyaColors.imperialGold, size: 36),
+                  ),
+                  const SizedBox(height: 24),
+                  Text('No Sanctuaries Booked', style: AtithyaTypography.displaySmall),
+                  const SizedBox(height: 8),
+                  Text('Your royal escapes will appear here.',
+                      style: AtithyaTypography.bodyElegant.copyWith(color: AtithyaColors.ashWhite)),
+                  const SizedBox(height: 40),
+                ],
+              ).animate().fadeIn(duration: 700.ms),
+            ),
+          )
+
+        // Booking cards
+        else
+          SliverPadding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20,
+                MediaQuery.of(context).padding.bottom + 80),
+            sliver: SliverList.builder(
+              itemCount: bookingState.bookings.length,
+              itemBuilder: (ctx, i) => Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: GestureDetector(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => BookingDetailScreen(
+                          booking: bookingState.bookings[i] as Map<String, dynamic>),
+                    ),
+                  ),
+                  child: _buildBookingCard(bookingState.bookings[i], i),
+                ),
+              ),
             ),
           ),
-          child: _buildBookingCard(bookingState.bookings[i], i),
-        ),
-      ),
+      ],
     );
   }
 

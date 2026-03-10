@@ -106,20 +106,18 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final allBookings = bookingState.bookings;
     final monthBookings = allBookings.where((b) => _overlapsMonth(b as Map)).toList();
 
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        SliverToBoxAdapter(child: bookingState.isLoading
-          ? const Padding(padding: EdgeInsets.all(80),
-              child: Center(child: CircularProgressIndicator(color: AtithyaColors.imperialGold, strokeWidth: 1)))
-          : Column(children: [
-              _buildCalendar(allBookings),
-              _buildGantt(monthBookings),
-              _buildSpending(allBookings),
-              const SizedBox(height: 120),
-            ])),
-      ],
-    );
+    if (bookingState.isLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(60),
+        child: Center(child: CircularProgressIndicator(
+            color: AtithyaColors.imperialGold, strokeWidth: 1)),
+      );
+    }
+    return Column(children: [
+      _buildCalendar(allBookings),
+      _buildGantt(monthBookings),
+      _buildSpending(allBookings),
+    ]);
   }
 
 
