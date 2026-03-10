@@ -137,7 +137,7 @@ class _JourneyDetailScreenState extends ConsumerState<JourneyDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final name     = _trip['name']     as String? ?? 'Journey Plan';
-    final icon     = _trip['icon']     as String? ?? '🗺️';
+    final iconKey  = (_trip['key']  as String? ?? _trip['icon'] as String? ?? '');
     final tagline  = _trip['tagline']  as String? ?? '';
     final duration = _trip['duration'] as String? ?? '$_totalNights nights';
     final cities   = _stops.map((s) => s['city'] as String? ?? '').where((c) => c.isNotEmpty).join(' · ');
@@ -217,7 +217,7 @@ class _JourneyDetailScreenState extends ConsumerState<JourneyDetailScreen> {
                                     blurRadius: 16, spreadRadius: 2),
                                 ],
                               ),
-                              child: Icon(journeyIcon(icon),
+                              child: Icon(journeyIcon(iconKey),
                                   color: AtithyaColors.imperialGold, size: 26),
                             ),
                             const SizedBox(width: 14),

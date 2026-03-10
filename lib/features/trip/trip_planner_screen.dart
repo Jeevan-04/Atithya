@@ -242,7 +242,7 @@ class _RouteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final name     = route['name']     as String? ?? '';
     final tagline  = route['tagline']  as String? ?? '';
-    final icon     = route['icon']     as String? ?? '🗺️';
+    final iconKey  = (route['key']  as String? ?? route['icon'] as String? ?? '');
     final duration = route['duration'] as String? ?? '';
     final stops    = (route['stops'] as List? ?? [])
         .cast<Map<String, dynamic>>();
@@ -291,7 +291,7 @@ class _RouteCard extends StatelessWidget {
                               .withValues(alpha: 0.35)),
                     ),
                     child: Center(
-                      child: Icon(journeyIcon(icon),
+                      child: Icon(journeyIcon(iconKey),
                           color: AtithyaColors.imperialGold, size: 26),
                     ),
                   ),
@@ -1060,7 +1060,7 @@ class _RouteDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final name    = route['name']    as String? ?? '';
     final tagline = route['tagline'] as String? ?? '';
-    final icon    = route['icon']    as String? ?? '🗺️';
+    final iconKey = (route['key']  as String? ?? route['icon'] as String? ?? '');
     final dur     = route['duration'] as String? ?? '';
 
     return Scaffold(
@@ -1114,7 +1114,7 @@ class _RouteDetailScreen extends StatelessWidget {
                               blurRadius: 24, spreadRadius: 4),
                           ],
                         ),
-                        child: Icon(journeyIcon(icon),
+                        child: Icon(journeyIcon(iconKey),
                             color: AtithyaColors.imperialGold, size: 36),
                       ),
                       const SizedBox(height: 8),

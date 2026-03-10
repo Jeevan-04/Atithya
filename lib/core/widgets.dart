@@ -252,32 +252,22 @@ class _GoldButtonState extends State<GoldButton> with SingleTickerProviderStateM
 }
 
 // ── Journey icon helper ───────────────────────────────────────────────────────
-/// Maps a route icon emoji or key string to a themed [IconData].
+/// Returns a themed [IconData] for a journey route.
+/// Pass route['key'] ?? route['icon'] for reliable matching.
 IconData journeyIcon(String? key) {
   switch (key) {
-    case '\u{1F451}':
     case 'royal_rajasthan':
-    case 'royal':
       return Icons.castle_outlined;
-    case '\u{1F3DB}\uFE0F':
-    case '\u{1F3DB}':
     case 'golden_triangle':
-    case 'cultural':
       return Icons.account_balance_outlined;
-    case '\u{1F334}':
     case 'kerala_backwaters':
-    case 'nature':
-      return Icons.forest_outlined;
-    case '\u{1F3D4}\uFE0F':
-    case '\u{1F3D4}':
+    case 'kerala_odyssey':
+      return Icons.water_outlined;
     case 'himalayan_escape':
-    case 'mountain':
       return Icons.terrain;
-    case '\u{1F64F}':
     case 'char_dham':
-    case 'spiritual':
       return Icons.temple_hindu_outlined;
     default:
-      return Icons.map_outlined;
+      return Icons.card_travel_outlined;
   }
 }

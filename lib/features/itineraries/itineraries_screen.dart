@@ -264,7 +264,7 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
             .map((s) => s['city'] as String? ?? '')
             .where((c) => c.isNotEmpty)
             .join(' · ');
-        final icon = trip['icon'] as String? ?? '🗺️';
+        final icon = trip['key'] as String? ?? trip['icon'] as String? ?? '';
         final name = trip['name'] as String? ?? 'Journey';
         final stopsLinked = stops.where((s) => s['estateId'] != null).length;
         final createdAt = trip['createdAt'] as String? ?? '';
@@ -941,11 +941,10 @@ class _LatticePatternPainter extends CustomPainter {
 class _PlanTripLauncher extends ConsumerWidget {
   const _PlanTripLauncher();
 
-  // Full curated routes with stops for JourneyDetailScreen preview
   static const _curatedRoutes = [
     {
       'key': 'royal_rajasthan',
-      'icon': '👑',
+      'icon': 'royal_rajasthan',
       'name': 'Royal Rajasthan',
       'tagline': 'Palaces, forts & desert royalty',
       'duration': '10-12 days',
@@ -958,7 +957,7 @@ class _PlanTripLauncher extends ConsumerWidget {
     },
     {
       'key': 'golden_triangle',
-      'icon': '🏛️',
+      'icon': 'golden_triangle',
       'name': 'Golden Triangle',
       'tagline': 'India\'s most iconic cultural circuit',
       'duration': '7-9 days',
@@ -970,7 +969,7 @@ class _PlanTripLauncher extends ConsumerWidget {
     },
     {
       'key': 'kerala_odyssey',
-      'icon': '🌴',
+      'icon': 'kerala_odyssey',
       'name': 'Kerala Odyssey',
       'tagline': 'Backwaters, highlands & golden shores',
       'duration': '8-10 days',
@@ -982,7 +981,7 @@ class _PlanTripLauncher extends ConsumerWidget {
     },
     {
       'key': 'himalayan_escape',
-      'icon': '🏔️',
+      'icon': 'himalayan_escape',
       'name': 'Himalayan Escape',
       'tagline': 'Snow peaks, valleys & mountain serenity',
       'duration': '9-11 days',
@@ -993,7 +992,7 @@ class _PlanTripLauncher extends ConsumerWidget {
     },
     {
       'key': 'char_dham',
-      'icon': '🙏',
+      'icon': 'char_dham',
       'name': '4 Dham Yatra',
       'tagline': 'The sacred Himalayan pilgrimage',
       'duration': '14-16 days',
