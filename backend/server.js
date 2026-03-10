@@ -581,7 +581,6 @@ app.get('/api/bookings/:id', auth, async (req, res) => {
 
 app.post('/api/bookings', auth, async (req, res) => {
     try {
-        if (req.user.role === 'guest') return res.status(403).json({ error: 'Elite membership required to book' });
 
         const { estateId, checkInDate, checkOutDate, guests, roomType, specialRequest, addOns, totalAmount, vehicleNumber, tenderDetails } = req.body;
 
@@ -845,7 +844,6 @@ app.get('/api/bookings/estate/active', auth, staffOnly(['admin', 'manager', 'des
 
 app.post('/api/food/order', auth, async (req, res) => {
     try {
-        if (req.user.role === 'guest') return res.status(403).json({ error: 'Login required' });
         const { bookingId, estateId, items, deliveryType, roomNumber, specialInstructions } = req.body;
 
         const total = items.reduce((s, i) => s + i.price * i.qty, 0);
