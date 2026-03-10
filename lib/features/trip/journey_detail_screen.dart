@@ -203,8 +203,23 @@ class _JourneyDetailScreenState extends ConsumerState<JourneyDetailScreen> {
                       children: [
                         Row(
                           children: [
-                            Icon(journeyIcon(icon),
-                                color: AtithyaColors.imperialGold, size: 36),
+                            Container(
+                              width: 56, height: 56,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF1A0E08),
+                                border: Border.all(
+                                    color: AtithyaColors.imperialGold, width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AtithyaColors.imperialGold
+                                        .withValues(alpha: 0.28),
+                                    blurRadius: 16, spreadRadius: 2),
+                                ],
+                              ),
+                              child: Icon(journeyIcon(icon),
+                                  color: AtithyaColors.imperialGold, size: 26),
+                            ),
                             const SizedBox(width: 14),
                             Expanded(
                               child: Column(

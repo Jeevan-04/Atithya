@@ -1100,8 +1100,23 @@ class _RouteDetailScreen extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const SizedBox(height: 40),
-                      Icon(journeyIcon(icon),
-                          color: AtithyaColors.imperialGold, size: 44),
+                      Container(
+                        width: 80, height: 80,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: const Color(0xFF1A0E08),
+                          border: Border.all(
+                              color: AtithyaColors.imperialGold, width: 1.5),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AtithyaColors.imperialGold
+                                  .withValues(alpha: 0.3),
+                              blurRadius: 24, spreadRadius: 4),
+                          ],
+                        ),
+                        child: Icon(journeyIcon(icon),
+                            color: AtithyaColors.imperialGold, size: 36),
+                      ),
                       const SizedBox(height: 8),
                       Text(name,
                           style: AtithyaTypography.displayMedium.copyWith(
