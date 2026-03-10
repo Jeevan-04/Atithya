@@ -261,33 +261,31 @@ class _DossierScreenState extends ConsumerState<DossierScreen>
                           style: AtithyaTypography.displayLarge).animate().fadeIn(duration: 800.ms, delay: 100.ms),
                       const SizedBox(height: 16),
 
-                      // Rating + distance + reviews row
-                      Row(
+                      // Rating + distance + verified row
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Flexible(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                              decoration: BoxDecoration(
-                                color: AtithyaColors.imperialGold.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.3)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.star, color: AtithyaColors.imperialGold, size: 14),
-                                  const SizedBox(width: 4),
-                                  Text('$rating', style: AtithyaTypography.labelSmall.copyWith(fontSize: 12)),
-                                  Flexible(
-                                    child: Text(' ($reviewCount reviews)',
-                                        style: AtithyaTypography.caption.copyWith(color: AtithyaColors.ashWhite),
-                                        overflow: TextOverflow.ellipsis),
-                                  ),
-                                ],
-                              ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AtithyaColors.imperialGold.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.star, color: AtithyaColors.imperialGold, size: 14),
+                                const SizedBox(width: 4),
+                                Text('$rating', style: AtithyaTypography.labelSmall.copyWith(fontSize: 12)),
+                                const SizedBox(width: 4),
+                                Text('($reviewCount reviews)',
+                                    style: AtithyaTypography.caption.copyWith(color: AtithyaColors.ashWhite)),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 12),
                           if (estate['distanceFromCity'] != null)
                             Row(
                               mainAxisSize: MainAxisSize.min,
@@ -299,7 +297,6 @@ class _DossierScreenState extends ConsumerState<DossierScreen>
                                     style: AtithyaTypography.caption),
                               ],
                             ),
-                          const Spacer(),
                           // Verified badge
                           Row(
                             mainAxisSize: MainAxisSize.min,

@@ -161,45 +161,44 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
   // ── OTP boxes (6 digit visual display) ────────────────────────────────
 
   Widget _buildOtpBoxes(String value) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final boxW = ((constraints.maxWidth - 48) / 6).clamp(36.0, 50.0);
-        return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(6, (i) {
-            final filled = i < value.length;
-            final current = i == value.length;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              margin: const EdgeInsets.symmetric(horizontal: 4),
-              width: boxW,
-              height: boxW * 1.2,
-              decoration: BoxDecoration(
-                color: filled
-                    ? AtithyaColors.imperialGold.withValues(alpha: 0.12)
-                    : AtithyaColors.surfaceElevated.withValues(alpha: 0.4),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: current
-                      ? AtithyaColors.imperialGold
-                      : filled
-                          ? AtithyaColors.burnishedGold.withValues(alpha: 0.7)
-                          : AtithyaColors.imperialGold.withValues(alpha: 0.2),
-                  width: current ? 1.5 : 1,
+    return Row(
+      children: List.generate(6, (i) {
+        final filled = i < value.length;
+        final current = i == value.length;
+        return Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: AspectRatio(
+              aspectRatio: 0.85,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                decoration: BoxDecoration(
+                  color: filled
+                      ? AtithyaColors.imperialGold.withValues(alpha: 0.12)
+                      : AtithyaColors.surfaceElevated.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: current
+                        ? AtithyaColors.imperialGold
+                        : filled
+                            ? AtithyaColors.burnishedGold.withValues(alpha: 0.7)
+                            : AtithyaColors.imperialGold.withValues(alpha: 0.2),
+                    width: current ? 1.5 : 1,
+                  ),
                 ),
+                alignment: Alignment.center,
+                child: filled
+                    ? Text(value[i],
+                        style: AtithyaTypography.displaySmall.copyWith(
+                            color: AtithyaColors.imperialGold,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 20))
+                    : const SizedBox.shrink(),
               ),
-              alignment: Alignment.center,
-              child: filled
-                  ? Text(value[i],
-                      style: AtithyaTypography.displaySmall.copyWith(
-                          color: AtithyaColors.imperialGold,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 20))
-                  : const SizedBox.shrink(),
-            );
-          }),
+            ),
+          ),
         );
-      },
+      }),
     );
   }
 

@@ -98,11 +98,12 @@ class _EstatesScreenState extends ConsumerState<EstatesScreen> {
                   )
                 : null,
             elevation: 0,
-            toolbarHeight: 80,
+            toolbarHeight: 90,
             flexibleSpace: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Expanded(
                       child: Column(
@@ -119,7 +120,10 @@ class _EstatesScreenState extends ConsumerState<EstatesScreen> {
                             widget.filterCity != null
                                 ? '${estates.length} ${_locale.t('est.propertiesIn')} ${widget.filterCity}'
                                 : '${estates.length} ${_locale.t('est.royalProperties')}',
-                            style: AtithyaTypography.displaySmall.copyWith(fontSize: 20)),
+                            style: AtithyaTypography.displaySmall.copyWith(fontSize: 20),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ],
                       ),
                     ),
