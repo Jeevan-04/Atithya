@@ -1004,13 +1004,23 @@ app.post('/api/payment', auth, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 app.get('/api/admin/system', auth, adminOnly, async (req, res) => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
     const [users, estates, bookings, orders] = await Promise.all([
         User.countDocuments(),
         Estate.countDocuments(),
         Booking.countDocuments(),
         FoodOrder.countDocuments(),
     ]);
-    const revenue = await Booking.aggregate([{ $group: { _id: null, total: { $sum: '$totalAmount' } } }]);
+    const revenue = await Booking.aggregate([
+        { $match: { status: { $ne: 'Cancelled' } } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
+    const cancelledRevenue = await Booking.aggregate([
+        { $match: { status: 'Cancelled' } },
+        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+    ]);
     const foodRevenue = await FoodOrder.aggregate([{ $group: { _id: null, total: { $sum: '$totalAmount' } } }]);
     const recentBookings = await Booking.find().populate('user estate').sort({ createdAt: -1 }).limit(5);
     const staffList = await User.find({ role: { $in: ['manager', 'gate_staff', 'desk_staff', 'phantom'] } }).populate('estateId', 'title');
@@ -1018,12 +1028,57 @@ app.get('/api/admin/system', auth, adminOnly, async (req, res) => {
         const obj = s.toObject();
         return { ...obj, role: obj.role === 'phantom' ? 'desk_staff' : obj.role, _isPhantom: obj.role === 'phantom' };
     });
+
+    // Top estates this month by booking count
+    const topEstatesMonth = await Booking.aggregate([
+        { $match: { createdAt: { $gte: startOfMonth }, status: { $ne: 'Cancelled' } } },
+        { $group: { _id: '$estate', count: { $sum: 1 }, revenue: { $sum: '$totalAmount' } } },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+        { $lookup: { from: 'estates', localField: '_id', foreignField: '_id', as: 'estateInfo' } },
+        { $unwind: { path: '$estateInfo', preserveNullAndEmpty: true } },
+        { $project: { count: 1, revenue: 1, title: '$estateInfo.title', city: '$estateInfo.city', heroImage: '$estateInfo.heroImage' } }
+    ]);
+
+    // Monthly revenue for the last 6 months
+    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const monthlyRevenue = await Booking.aggregate([
+        { $match: { createdAt: { $gte: sixMonthsAgo }, status: { $ne: 'Cancelled' } } },
+        { $group: { _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } }, total: { $sum: '$totalAmount' }, count: { $sum: 1 } } },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]);
+
     res.json({
         users, estates, bookings, orders,
         revenue: revenue[0]?.total || 0,
+        cancelledRevenue: cancelledRevenue[0]?.total || 0,
+        refundedAmount: (cancelledRevenue[0]?.total || 0) * 0.8,
         foodRevenue: foodRevenue[0]?.total || 0,
         recentBookings, staffList: staffSafe,
+        topEstatesMonth,
+        monthlyRevenue,
     });
+});
+
+// GET /api/admin/bookings — paginated full booking list for admin dashboard
+app.get('/api/admin/bookings', auth, adminOnly, async (req, res) => {
+    try {
+        const page  = parseInt(req.query.page  || '1');
+        const limit = parseInt(req.query.limit || '30');
+        const status = req.query.status; // optional filter
+        const query = status ? { status } : {};
+        const [total, rows] = await Promise.all([
+            Booking.countDocuments(query),
+            Booking.find(query)
+                .populate('user', 'name phoneNumber')
+                .populate('estate', 'title city heroImage')
+                .sort({ createdAt: -1 })
+                .skip((page - 1) * limit)
+                .limit(limit)
+                .lean(),
+        ]);
+        res.json({ total, page, limit, bookings: rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // Create / update staff account
