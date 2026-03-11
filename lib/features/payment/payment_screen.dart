@@ -785,6 +785,7 @@ class _CardExpiryFormatter extends TextInputFormatter {
           final currentYY = DateTime.now().year % 100;
           int year = int.parse(yearRaw);
           if (year < currentYY) year = currentYY;
+          if (year > currentYY + 10) year = currentYY + 10;
           buffer.write(year.toString().padLeft(2, '0'));
         } else {
           buffer.write(yearRaw);
