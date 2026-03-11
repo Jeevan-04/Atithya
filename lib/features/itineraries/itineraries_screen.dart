@@ -518,8 +518,10 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
                   ),
                 ),
                 // Location at bottom
-                Positioned(bottom: 12, left: 14,
+                Positioned(bottom: 12, left: 14, right: 80,
                   child: Text((estate['location'] ?? '').toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: AtithyaTypography.labelSmall.copyWith(color: AtithyaColors.imperialGold.withValues(alpha: 0.8), fontSize: 9, letterSpacing: 2)),
                 ),
               ],
@@ -527,26 +529,63 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
           ),
           // Info section
           Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(estate['title'] ?? 'Royal Estate', style: AtithyaTypography.displaySmall.copyWith(fontSize: 19)),
-                const SizedBox(height: 14),
-                // Date + guests + price row
+                // Title
+                Text(
+                  estate['title'] ?? 'Royal Estate',
+                  style: AtithyaTypography.displaySmall.copyWith(fontSize: 17),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 10),
+                // Date row — full width
                 Row(
                   children: [
-                    _infoTile(Icons.calendar_month_outlined, '$checkIn – $checkOut'),
-                    const SizedBox(width: 18),
-                    _infoTile(Icons.group_outlined, '${b['guests'] ?? 2} guests'),
+                    Icon(Icons.calendar_month_outlined,
+                        color: AtithyaColors.imperialGold.withValues(alpha: 0.7), size: 13),
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        '$checkIn – $checkOut',
+                        style: AtithyaTypography.caption.copyWith(
+                            color: AtithyaColors.parchment, fontSize: 11.5),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                // Guests + price row
+                Row(
+                  children: [
+                    Icon(Icons.group_outlined,
+                        color: AtithyaColors.imperialGold.withValues(alpha: 0.7), size: 13),
+                    const SizedBox(width: 5),
+                    Text(
+                      '${b['guests'] ?? 2} guests',
+                      style: AtithyaTypography.caption.copyWith(
+                          color: AtithyaColors.parchment, fontSize: 11.5),
+                    ),
                     const Spacer(),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Text(_locale.t('it.total'), style: AtithyaTypography.labelSmall.copyWith(
-                          color: AtithyaColors.ashWhite, fontSize: 8, letterSpacing: 2)),
-                        Text('₹${(b['totalAmount'] ?? 0).toStringAsFixed(0)}',
-                          style: AtithyaTypography.price.copyWith(fontSize: 18, color: AtithyaColors.shimmerGold)),
+                        Text(
+                          _locale.t('it.total'),
+                          style: AtithyaTypography.labelSmall.copyWith(
+                              color: AtithyaColors.ashWhite, fontSize: 8, letterSpacing: 2),
+                        ),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '₹${(b['totalAmount'] ?? 0).toStringAsFixed(0)}',
+                            style: AtithyaTypography.price.copyWith(
+                                fontSize: 17, color: AtithyaColors.shimmerGold),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -937,17 +976,6 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
             color: AtithyaColors.parchment.withValues(alpha: 0.7), fontSize: 11)),
         Text(value, style: AtithyaTypography.labelSmall.copyWith(
             color: valueColor, fontSize: 13)),
-      ],
-    );
-  }
-
-  Widget _infoTile(IconData icon, String label) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, color: AtithyaColors.imperialGold.withValues(alpha: 0.7), size: 13),
-        const SizedBox(width: 5),
-        Text(label, style: AtithyaTypography.caption.copyWith(color: AtithyaColors.parchment, fontSize: 11.5)),
       ],
     );
   }
