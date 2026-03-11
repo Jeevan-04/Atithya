@@ -1,3 +1,11 @@
+// =============================================================================
+// आतिथ्य — Royal Hospitality Platform
+// Author : Jeevan Naidu <jeevannaidu04@gmail.com>
+// License: Proprietary © 2025-2026 Jeevan Naidu. All rights reserved.
+// -----------------------------------------------------------------------------
+// ApiClient — singleton HTTP client. Reads/writes JWT from SharedPreferences,
+// auto-injects Authorization header, base URL switchable via kIsWeb flag.
+// =============================================================================
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';

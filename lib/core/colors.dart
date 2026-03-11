@@ -1,3 +1,11 @@
+// =============================================================================
+// आतिथ्य — Royal Hospitality Platform
+// Author : Jeevan Naidu <jeevannaidu04@gmail.com>
+// License: Proprietary © 2025-2026 Jeevan Naidu. All rights reserved.
+// -----------------------------------------------------------------------------
+// AtithyaColors — hand-curated palette for a dark-luxury aesthetic.
+// Obsidian black base, antique gold accents, ivory text, deep jewel tones.
+// =============================================================================
 import 'package:flutter/material.dart';
 
 class AtithyaColors {

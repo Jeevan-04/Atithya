@@ -1,3 +1,11 @@
+// =============================================================================
+// आतिथ्य — Royal Hospitality Platform
+// Author : Jeevan Naidu <jeevannaidu04@gmail.com>
+// License: Proprietary © 2025-2026 Jeevan Naidu. All rights reserved.
+// -----------------------------------------------------------------------------
+// AuthProvider — Riverpod Notifier managing OTP flow, JWT persistence,
+// profile updates, and role-aware session state (guest|elite|staff|phantom).
+// =============================================================================
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/network/api_client.dart';

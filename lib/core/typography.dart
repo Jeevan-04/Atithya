@@ -1,3 +1,11 @@
+// =============================================================================
+// आतिथ्य — Royal Hospitality Platform
+// Author : Jeevan Naidu <jeevannaidu04@gmail.com>
+// License: Proprietary © 2025-2026 Jeevan Naidu. All rights reserved.
+// -----------------------------------------------------------------------------
+// AtithyaTypography — typographic system using Playfair Display (serif
+// elegance) + Cinzel (classical caps) + Inter (clean body copy).
+// =============================================================================
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
