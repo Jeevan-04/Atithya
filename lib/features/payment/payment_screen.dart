@@ -49,7 +49,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
   late AnimationController _successCtrl;
 
   final _cardNumberCtrl = TextEditingController();
-  final _expiryCtrl = TextEditingController(text: '12/28');
+  final _expiryCtrl = TextEditingController();
   final _cvvCtrl = TextEditingController(text: '');
   final _upiCtrl = TextEditingController();
   final _nameCtrl = TextEditingController(text: 'Maharaj Jeevan');
@@ -90,6 +90,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
     // Rebuild card preview on typing
     _cardNumberCtrl.addListener(() => setState(() {}));
     _nameCtrl.addListener(() => setState(() {}));
+    _expiryCtrl.addListener(() => setState(() {}));
   }
 
   @override
@@ -383,7 +384,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('EXPIRES', style: AtithyaTypography.caption.copyWith(fontSize: 8, letterSpacing: 2)),
-                        Text(_expiryCtrl.text, style: AtithyaTypography.bodyElegant.copyWith(fontSize: 13)),
+                        Text(_expiryCtrl.text.isEmpty ? '••/••' : _expiryCtrl.text, style: AtithyaTypography.bodyElegant.copyWith(fontSize: 13)),
                       ],
                     ),
                   ],
@@ -452,7 +453,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
         const SizedBox(height: 12),
         Row(
           children: [
-            Expanded(child: _glassInput(_expiryCtrl, 'MM/YY', Icons.calendar_month_outlined, false)),
+            Expanded(child: _glassInput(_expiryCtrl, 'MM/YY', Icons.calendar_month_outlined, false,
+                formatters: [_CardExpiryFormatter()],
+                keyboardType: TextInputType.number)),
             const SizedBox(width: 12),
             Expanded(child: _glassInput(_cvvCtrl, 'CVV', Icons.lock_outline, true, onTap: () {
               setState(() { _isFlipped = true; });
@@ -753,6 +756,50 @@ class _Particle {
 }
 
 // Auto-formats card number as groups of 4 digits separated by spaces: XXXX XXXX XXXX XXXX
+class _CardExpiryFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return newValue.copyWith(text: '');
+
+    final buffer = StringBuffer();
+
+    if (digits.length == 1) {
+      // If first digit > 1, auto-pad with 0 (e.g. '3' → '03/')
+      if (int.parse(digits[0]) > 1) {
+        buffer.write('0${digits[0]}/');
+      } else {
+        buffer.write(digits[0]);
+      }
+    } else {
+      // Clamp month 01–12
+      int month = int.parse(digits.substring(0, 2));
+      if (month < 1) month = 1;
+      if (month > 12) month = 12;
+      buffer.write('${month.toString().padLeft(2, '0')}/');
+
+      // Year: 1 or 2 digits — if 2 digits, clamp to >= current year
+      if (digits.length > 2) {
+        final yearRaw = digits.substring(2, digits.length.clamp(0, 4));
+        if (yearRaw.length == 2) {
+          final currentYY = DateTime.now().year % 100;
+          int year = int.parse(yearRaw);
+          if (year < currentYY) year = currentYY;
+          buffer.write(year.toString().padLeft(2, '0'));
+        } else {
+          buffer.write(yearRaw);
+        }
+      }
+    }
+
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
+}
+
 class _CardNumberFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
