@@ -1406,6 +1406,9 @@ app.get('/api/loyalty/tiers', (req, res) => {
         { tier: 'Royal',    minPoints: 10000, perks: ['All Platinum + personal butler', 'Exclusive estates', '20% discount'], color: '#9B7DEC' },
     ]);
 });
+
+// ══════════════════════════════════════════════════════════════════════════════
+if (process.env.NODE_ENV !== 'production') {
     // DEV: upgrade a user to elite for testing
     app.post('/api/auth/upgrade-to-elite', async (req, res) => {
         const { phoneNumber } = req.body;
