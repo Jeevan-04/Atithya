@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/colors.dart';
@@ -47,7 +48,7 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
   late AnimationController _confettiCtrl;
   late AnimationController _successCtrl;
 
-  final _cardNumberCtrl = TextEditingController(text: '4*** **** **** ****');
+  final _cardNumberCtrl = TextEditingController();
   final _expiryCtrl = TextEditingController(text: '12/28');
   final _cvvCtrl = TextEditingController(text: '');
   final _upiCtrl = TextEditingController();
@@ -86,6 +87,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
     if (role == 'admin' || role == 'elite') {
       _selectedMethod = 3;
     }
+    // Rebuild card preview on typing
+    _cardNumberCtrl.addListener(() => setState(() {}));
+    _nameCtrl.addListener(() => setState(() {}));
   }
 
   @override
@@ -360,7 +364,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
                   ],
                 ),
                 const Spacer(),
-                Text(_cardNumberCtrl.text,
+                Text(
+                    _cardNumberCtrl.text.isEmpty ? '•••• •••• •••• ••••' : _cardNumberCtrl.text,
                     style: AtithyaTypography.displaySmall.copyWith(
                         letterSpacing: 4, fontSize: 18, color: AtithyaColors.shimmerGold)),
                 const SizedBox(height: 16),
@@ -441,7 +446,9 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
   Widget _buildCardInputs() {
     return Column(
       children: [
-        _glassInput(_cardNumberCtrl, 'Card Number', Icons.credit_card_outlined, false),
+        _glassInput(_cardNumberCtrl, '1234 5678 9012 3456', Icons.credit_card_outlined, false,
+            formatters: [_CardNumberFormatter()],
+            keyboardType: TextInputType.number),
         const SizedBox(height: 12),
         Row(
           children: [
@@ -581,7 +588,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
     ).animate().fadeIn(duration: 600.ms);
   }
 
-  Widget _glassInput(TextEditingController ctrl, String hint, IconData icon, bool obscure, {VoidCallback? onTap}) {
+  Widget _glassInput(TextEditingController ctrl, String hint, IconData icon, bool obscure,
+      {VoidCallback? onTap, List<TextInputFormatter>? formatters, TextInputType? keyboardType}) {
     return Container(
       decoration: BoxDecoration(
         color: AtithyaColors.darkSurface,
@@ -591,6 +599,8 @@ class _PaymentScreenState extends ConsumerState<PaymentScreen>
       child: TextField(
         controller: ctrl,
         obscureText: obscure,
+        keyboardType: keyboardType,
+        inputFormatters: formatters,
         style: AtithyaTypography.displaySmall.copyWith(fontSize: 16, color: AtithyaColors.pearl),
         cursorColor: AtithyaColors.imperialGold,
         onTap: onTap,
@@ -740,4 +750,23 @@ class _Particle {
           AtithyaColors.roseGlow, AtithyaColors.pearl,
           AtithyaColors.burnishedGold
         ][rng.nextInt(5)];
+}
+
+// Auto-formats card number as groups of 4 digits separated by spaces: XXXX XXXX XXXX XXXX
+class _CardNumberFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final digits = newValue.text.replaceAll(RegExp(r'\D'), '');
+    final capped = digits.length > 16 ? digits.substring(0, 16) : digits;
+    final buffer = StringBuffer();
+    for (int i = 0; i < capped.length; i++) {
+      if (i > 0 && i % 4 == 0) buffer.write(' ');
+      buffer.write(capped[i]);
+    }
+    final formatted = buffer.toString();
+    return TextEditingValue(
+      text: formatted,
+      selection: TextSelection.collapsed(offset: formatted.length),
+    );
+  }
 }

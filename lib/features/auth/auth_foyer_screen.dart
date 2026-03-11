@@ -593,19 +593,6 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
                                 },
                               ).animate().fadeIn(duration: 800.ms, delay: 1000.ms)
                                .slideY(begin: 0.15, end: 0),
-                              const SizedBox(height: 12),
-
-                              // Create Account CTA
-                              GoldButton(
-                                label: 'CREATE AN ACCOUNT',
-                                onTap: () {
-                                  _phoneCtrl.clear(); _otpCtrl.clear();
-                                  setState(() { _showEntryPanel = true; _isStaffMode = false; _isSignupMode = true; });
-                                  WidgetsBinding.instance.addPostFrameCallback(
-                                      (_) => _phoneFocus.requestFocus());
-                                },
-                              ).animate().fadeIn(duration: 800.ms, delay: 1100.ms)
-                               .slideY(begin: 0.1, end: 0),
                               const SizedBox(height: 14),
 
                               // Guest CTA
