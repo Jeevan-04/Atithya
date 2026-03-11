@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/colors.dart';
+import '../../../core/network/api_client.dart';
 import '../../../core/typography.dart';
 import '../../../providers/access_provider.dart';
 import '../../../providers/auth_provider.dart';
@@ -18,15 +19,31 @@ class StaffDashboardScreen extends ConsumerStatefulWidget {
 class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabs;
+  List<Map<String, dynamic>> _rooms = [];
+  bool _roomsLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    _tabs = TabController(length: 3, vsync: this);
     Future.microtask(() {
       ref.read(accessProvider.notifier).fetchTodayArrivals();
       ref.read(accessProvider.notifier).fetchActiveGuests();
+      _fetchRooms();
     });
+  }
+
+  Future<void> _fetchRooms() async {
+    setState(() => _roomsLoading = true);
+    try {
+      final data = await ApiClient().get('/api/rooms/status');
+      if (mounted) setState(() {
+        _rooms = (data as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ?? [];
+        _roomsLoading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _roomsLoading = false);
+    }
   }
 
   @override
@@ -188,7 +205,7 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen>
                 labelColor: AtithyaColors.imperialGold,
                 unselectedLabelColor: AtithyaColors.parchment,
                 labelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                tabs: const [Tab(text: "Today's Arrivals"), Tab(text: 'Active Guests')],
+                tabs: const [Tab(text: "Today's Arrivals"), Tab(text: 'Active Guests'), Tab(text: 'Room Board')],
               ),
             ),
 
@@ -210,8 +227,17 @@ class _StaffDashboardScreenState extends ConsumerState<StaffDashboardScreen>
                           bookings: access.activeGuests,
                           emptyLabel: 'No active guests',
                           onRefresh: () => ref.read(accessProvider.notifier).fetchActiveGuests(),
-                        ),
-                      ],
+                        ),                        _HousekeepingBoard(
+                          rooms: _rooms,
+                          loading: _roomsLoading,
+                          onRefresh: _fetchRooms,
+                          onStatusChanged: (id, status) async {
+                            try {
+                              await ApiClient().patch('/api/rooms/status/$id', {'status': status});
+                              await _fetchRooms();
+                            } catch (_) {}
+                          },
+                        ),                      ],
                     ),
             ),
           ],
@@ -390,4 +416,211 @@ class _TierBadge extends StatelessWidget {
     ),
     child: Text(tier, style: TextStyle(color: _color, fontSize: 9, fontWeight: FontWeight.w600)),
   );
+}
+
+// ── Housekeeping/Room Status Board ───────────────────────────────────────────
+
+class _HousekeepingBoard extends StatelessWidget {
+  final List<Map<String, dynamic>> rooms;
+  final bool loading;
+  final VoidCallback onRefresh;
+  final Future<void> Function(String id, String status) onStatusChanged;
+
+  const _HousekeepingBoard({
+    required this.rooms,
+    required this.loading,
+    required this.onRefresh,
+    required this.onStatusChanged,
+  });
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'Vacant':      return const Color(0xFF4CAF50);
+      case 'Occupied':    return const Color(0xFFFF5252);
+      case 'Cleaning':    return const Color(0xFFFFB300);
+      case 'Ready':       return const Color(0xFF40C4FF);
+      case 'Maintenance': return const Color(0xFFFF6D00);
+      case 'Blocked':     return const Color(0xFF9E9E9E);
+      default:            return AtithyaColors.imperialGold;
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case 'Vacant':      return Icons.check_circle_outline;
+      case 'Occupied':    return Icons.person_rounded;
+      case 'Cleaning':    return Icons.cleaning_services_outlined;
+      case 'Ready':       return Icons.hotel_outlined;
+      case 'Maintenance': return Icons.build_outlined;
+      case 'Blocked':     return Icons.block_outlined;
+      default:            return Icons.circle_outlined;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Center(child: CircularProgressIndicator(color: AtithyaColors.imperialGold));
+    }
+    if (rooms.isEmpty) {
+      return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Icon(Icons.hotel_outlined, color: AtithyaColors.imperialGold, size: 48),
+        const SizedBox(height: 16),
+        Text('No rooms configured', style: AtithyaTypography.bodyElegant.copyWith(color: AtithyaColors.parchment)),
+        const SizedBox(height: 8),
+        Text('Add rooms via the admin panel', style: AtithyaTypography.caption.copyWith(color: AtithyaColors.ashWhite)),
+        const SizedBox(height: 24),
+        GestureDetector(
+          onTap: onRefresh,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              border: Border.all(color: AtithyaColors.imperialGold.withOpacity(0.4)),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text('Refresh', style: AtithyaTypography.labelSmall.copyWith(color: AtithyaColors.imperialGold, letterSpacing: 2)),
+          ),
+        ),
+      ]));
+    }
+
+    const statuses = ['Vacant', 'Cleaning', 'Ready', 'Occupied', 'Maintenance', 'Blocked'];
+
+    return RefreshIndicator(
+      onRefresh: () async => onRefresh(),
+      color: AtithyaColors.imperialGold,
+      backgroundColor: AtithyaColors.darkSurface,
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+        slivers: [
+          // ── Summary legend ───────────────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Wrap(spacing: 8, runSpacing: 6, children: statuses.map((s) {
+                final count = rooms.where((r) => (r['status'] as String? ?? '') == s).length;
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _statusColor(s).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: _statusColor(s).withOpacity(0.4)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Icon(_statusIcon(s), size: 11, color: _statusColor(s)),
+                    const SizedBox(width: 5),
+                    Text('$s ($count)', style: TextStyle(
+                      color: _statusColor(s), fontSize: 9, fontWeight: FontWeight.w600,
+                      letterSpacing: 0.5,
+                    )),
+                  ]),
+                );
+              }).toList()),
+            ),
+          ),
+          // ── Room grid ────────────────────────────────────────────────────
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 40),
+            sliver: SliverGrid(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final room = rooms[i];
+                  final status = room['status'] as String? ?? 'Vacant';
+                  final color = _statusColor(status);
+                  final roomNum = room['roomNumber']?.toString() ?? '?';
+                  final floor = room['floor']?.toString() ?? '';
+                  final wing = room['wing']?.toString() ?? '';
+
+                  return GestureDetector(
+                    onTap: () => showModalBottomSheet(
+                      context: ctx,
+                      backgroundColor: AtithyaColors.darkSurface,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                      builder: (_) => Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(mainAxisSize: MainAxisSize.min, children: [
+                          Text('Room $roomNum ${wing.isNotEmpty ? '· $wing' : ''}',
+                            style: AtithyaTypography.displaySmall.copyWith(fontSize: 18)),
+                          const SizedBox(height: 6),
+                          if (floor.isNotEmpty)
+                            Text('Floor $floor', style: AtithyaTypography.caption.copyWith(color: AtithyaColors.ashWhite)),
+                          const SizedBox(height: 20),
+                          Text('UPDATE STATUS', style: AtithyaTypography.labelMicro.copyWith(
+                            color: AtithyaColors.imperialGold, letterSpacing: 3, fontSize: 9)),
+                          const SizedBox(height: 12),
+                          Wrap(spacing: 8, runSpacing: 8, children: statuses.map((s) =>
+                            GestureDetector(
+                              onTap: () async {
+                                Navigator.pop(ctx);
+                                await onStatusChanged(room['_id'].toString(), s);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: s == status
+                                    ? _statusColor(s).withOpacity(0.2)
+                                    : const Color(0xFF1A1C22),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: s == status
+                                      ? _statusColor(s)
+                                      : AtithyaColors.imperialGold.withOpacity(0.2)),
+                                ),
+                                child: Text(s, style: TextStyle(
+                                  color: _statusColor(s), fontSize: 12, fontWeight: FontWeight.w600)),
+                              ),
+                            ),
+                          ).toList()),
+                        ]),
+                      ),
+                    ),
+                    child: Container(
+                      margin: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: color.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: color.withOpacity(0.35)),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(_statusIcon(status), color: color, size: 22),
+                          const SizedBox(height: 6),
+                          Text(roomNum, style: AtithyaTypography.displaySmall.copyWith(
+                            color: color, fontSize: 18)),
+                          if (wing.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(wing, style: AtithyaTypography.caption.copyWith(
+                              color: color.withOpacity(0.7), fontSize: 9)),
+                          ],
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: color.withOpacity(0.15),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(status, style: TextStyle(
+                              color: color, fontSize: 8, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                          ),
+                        ],
+                      ),
+                    ).animate().fadeIn(duration: Duration(milliseconds: 300 + i * 40)),
+                  );
+                },
+                childCount: rooms.length,
+              ),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 3,
+                mainAxisSpacing: 4,
+                crossAxisSpacing: 4,
+                childAspectRatio: 0.9,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

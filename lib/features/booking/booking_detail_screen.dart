@@ -8,8 +8,10 @@ import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/colors.dart';
 import '../../core/typography.dart';
+import '../../core/network/api_client.dart';
 import '../../providers/booking_provider.dart';
 import '../dossier/dossier_screen.dart';
+import 'pre_arrival_form_screen.dart';
 
 class BookingDetailScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> booking;
@@ -21,6 +23,64 @@ class BookingDetailScreen extends ConsumerStatefulWidget {
 
 class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
   bool _cancelling = false;
+  Map<String, dynamic>? _existingReview;
+  bool _reviewLoaded = false;
+  bool _showReviewForm = false;
+  int _starRating = 5;
+  final _reviewTitleCtrl = TextEditingController();
+  final _reviewBodyCtrl = TextEditingController();
+  bool _submittingReview = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReview();
+  }
+
+  @override
+  void dispose() {
+    _reviewTitleCtrl.dispose();
+    _reviewBodyCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadReview() async {
+    if ((_b['status'] as String? ?? '') != 'Checked Out') return;
+    try {
+      final data = await ApiClient().get('/api/bookings/${_b['_id']}/review');
+      if (mounted) setState(() { _existingReview = data; _reviewLoaded = true; });
+    } catch (_) {
+      if (mounted) setState(() => _reviewLoaded = true);
+    }
+  }
+
+  Future<void> _submitReview() async {
+    if (_starRating < 1 || _starRating > 5) return;
+    setState(() => _submittingReview = true);
+    try {
+      await ApiClient().post('/api/reviews', {
+        'bookingId': _b['_id'],
+        'rating': _starRating,
+        'title': _reviewTitleCtrl.text.trim(),
+        'body': _reviewBodyCtrl.text.trim(),
+      });
+      if (mounted) {
+        setState(() { _showReviewForm = false; _existingReview = {'rating': _starRating}; });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          backgroundColor: const Color(0xFF1A1C22),
+          content: Text('Review submitted — 50 Royal Points credited!',
+            style: AtithyaTypography.bodyElegant),
+        ));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        backgroundColor: const Color(0xFF1A1C22),
+        content: Text(e.toString(), style: AtithyaTypography.caption.copyWith(color: AtithyaColors.errorRed)),
+      ));
+    } finally {
+      if (mounted) setState(() => _submittingReview = false);
+    }
+  }
 
   Map<String, dynamic> get _b => widget.booking;
   Map<String, dynamic> get _estate => (_b['estate'] as Map<String, dynamic>?) ?? {};
@@ -357,6 +417,91 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     ])).animate().fadeIn(duration: 700.ms, delay: 400.ms),
                   ],
 
+                  // ── Pre-arrival form ──────────────────────────────────────
+                  if (isConfirmed) ...[
+                    const SizedBox(height: 14),
+                    GestureDetector(
+                      onTap: () async {
+                        final submitted = await Navigator.push<bool>(context, MaterialPageRoute(
+                          builder: (_) => PreArrivalFormScreen(booking: _b),
+                        ));
+                        if (submitted == true && mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                            backgroundColor: const Color(0xFF1A1C22),
+                            content: Text('Pre-arrival details saved!',
+                              style: AtithyaTypography.bodyElegant),
+                          ));
+                        }
+                      },
+                      child: _card(child: Row(children: [
+                        Container(width: 42, height: 42,
+                          decoration: BoxDecoration(
+                            color: AtithyaColors.imperialGold.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.assignment_ind_outlined, color: AtithyaColors.imperialGold, size: 20),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('PRE-ARRIVAL CHECK-IN', style: AtithyaTypography.labelMicro.copyWith(
+                            color: AtithyaColors.imperialGold, letterSpacing: 2, fontSize: 9)),
+                          const SizedBox(height: 4),
+                          Text(
+                            (_b['preArrivalForm'] as Map?)?.containsKey('submitted') == true
+                              ? 'Form submitted — you are all set'
+                              : 'Complete your check-in form before arrival',
+                            style: AtithyaTypography.bodyElegant.copyWith(fontSize: 13),
+                          ),
+                        ])),
+                        Icon(
+                          (_b['preArrivalForm'] as Map?)?.containsKey('submitted') == true
+                            ? Icons.check_circle_outline
+                            : Icons.arrow_forward_ios,
+                          size: 16,
+                          color: (_b['preArrivalForm'] as Map?)?.containsKey('submitted') == true
+                            ? const Color(0xFF4CAF50)
+                            : AtithyaColors.ashWhite.withValues(alpha: 0.3),
+                        ),
+                      ])),
+                    ).animate().fadeIn(duration: 600.ms, delay: 450.ms),
+                  ],
+
+                  // ── Folio ─────────────────────────────────────────────────
+                  if (status != 'Cancelled') ...[
+                    const SizedBox(height: 14),
+                    _card(child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          _label('FOLIO / INVOICE'),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AtithyaColors.imperialGold.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.2)),
+                            ),
+                            child: Text('DOWNLOAD', style: AtithyaTypography.labelMicro.copyWith(
+                              color: AtithyaColors.imperialGold, letterSpacing: 1.5, fontSize: 8)),
+                          ),
+                        ]),
+                        const SizedBox(height: 16),
+                        _folioRow('Room Charges', '₹${NumberFormat('#,##,###').format((amt * 0.85).round())}'),
+                        const SizedBox(height: 10),
+                        _folioRow('Taxes & Levies (18%)', '₹${NumberFormat('#,##,###').format((amt * 0.15).round())}'),
+                        const SizedBox(height: 12),
+                        Container(height: 1, color: AtithyaColors.imperialGold.withValues(alpha: 0.12)),
+                        const SizedBox(height: 12),
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          Text('TOTAL', style: AtithyaTypography.labelMicro.copyWith(
+                            color: AtithyaColors.imperialGold, letterSpacing: 2, fontSize: 9)),
+                          Text('₹${NumberFormat('#,##,###').format(amt.toInt())}',
+                            style: AtithyaTypography.price.copyWith(fontSize: 16, color: AtithyaColors.shimmerGold)),
+                        ]),
+                      ],
+                    )).animate().fadeIn(duration: 700.ms, delay: 480.ms),
+                  ],
+
                   // ── Cancel ────────────────────────────────────────────────
                   if (isConfirmed) ...[
                     const SizedBox(height: 24),
@@ -379,6 +524,126 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                             ])),
                       ),
                     ).animate().fadeIn(duration: 600.ms, delay: 500.ms),
+                  ],
+
+                  // ── Review ────────────────────────────────────────────────
+                  if (status == 'Checked Out') ...[
+                    const SizedBox(height: 24),
+                    if (!_reviewLoaded)
+                      const Center(child: SizedBox(width: 18, height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 1.5, color: AtithyaColors.imperialGold)))
+                    else if (_existingReview != null)
+                      _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                          _label('YOUR REVIEW'),
+                          Row(children: List.generate(5, (i) => Icon(
+                            i < (_existingReview!['rating'] as num? ?? 5).toInt()
+                              ? Icons.star_rounded : Icons.star_outline_rounded,
+                            size: 15, color: AtithyaColors.imperialGold))),
+                        ]),
+                        if (_existingReview!['body'] != null) ...[
+                          const SizedBox(height: 12),
+                          Text(_existingReview!['body'].toString(),
+                            style: AtithyaTypography.bodyElegant.copyWith(
+                              fontSize: 13, color: AtithyaColors.parchment, fontStyle: FontStyle.italic)),
+                        ],
+                      ]))
+                    else if (_showReviewForm)
+                      _card(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        _label('LEAVE A REVIEW'),
+                        const SizedBox(height: 16),
+                        Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(5, (i) =>
+                          GestureDetector(
+                            onTap: () => setState(() => _starRating = i + 1),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 4),
+                              child: Icon(
+                                i < _starRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                                size: 30,
+                                color: i < _starRating ? AtithyaColors.imperialGold : AtithyaColors.ashWhite.withValues(alpha: 0.3),
+                              ),
+                            ),
+                          ),
+                        )),
+                        const SizedBox(height: 16),
+                        TextField(
+                          controller: _reviewTitleCtrl,
+                          style: AtithyaTypography.bodyElegant.copyWith(fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: 'Summary (optional)',
+                            hintStyle: AtithyaTypography.caption.copyWith(color: AtithyaColors.ashWhite.withValues(alpha: 0.3)),
+                            enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AtithyaColors.imperialGold.withValues(alpha: 0.2))),
+                            focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AtithyaColors.imperialGold)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _reviewBodyCtrl,
+                          style: AtithyaTypography.bodyElegant.copyWith(fontSize: 13),
+                          maxLines: 4,
+                          decoration: InputDecoration(
+                            hintText: 'Share your experience...',
+                            hintStyle: AtithyaTypography.caption.copyWith(color: AtithyaColors.ashWhite.withValues(alpha: 0.3)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AtithyaColors.imperialGold.withValues(alpha: 0.2))),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(color: AtithyaColors.imperialGold.withValues(alpha: 0.5))),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(children: [
+                          Expanded(child: GestureDetector(
+                            onTap: () => setState(() => _showReviewForm = false),
+                            child: Container(
+                              height: 44,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: AtithyaColors.ashWhite.withValues(alpha: 0.15))),
+                              child: Center(child: Text('CANCEL', style: AtithyaTypography.labelSmall.copyWith(
+                                color: AtithyaColors.ashWhite, letterSpacing: 2, fontSize: 10))),
+                            ),
+                          )),
+                          const SizedBox(width: 10),
+                          Expanded(child: GestureDetector(
+                            onTap: _submittingReview ? null : _submitReview,
+                            child: Container(
+                              height: 44,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(4),
+                                color: AtithyaColors.imperialGold.withValues(alpha: 0.15),
+                                border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.5))),
+                              child: Center(child: _submittingReview
+                                ? const SizedBox(width: 16, height: 16,
+                                    child: CircularProgressIndicator(strokeWidth: 1.5, color: AtithyaColors.imperialGold))
+                                : Text('SUBMIT', style: AtithyaTypography.labelSmall.copyWith(
+                                    color: AtithyaColors.imperialGold, letterSpacing: 2, fontSize: 10))),
+                            ),
+                          )),
+                        ]),
+                      ]))
+                    else
+                      GestureDetector(
+                        onTap: () => setState(() => _showReviewForm = true),
+                        child: _card(child: Row(children: [
+                          Container(width: 42, height: 42,
+                            decoration: BoxDecoration(
+                              color: AtithyaColors.imperialGold.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(8)),
+                            child: const Icon(Icons.rate_review_outlined, color: AtithyaColors.imperialGold, size: 20)),
+                          const SizedBox(width: 14),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text('RATE YOUR STAY', style: AtithyaTypography.labelMicro.copyWith(
+                              color: AtithyaColors.imperialGold, letterSpacing: 2, fontSize: 9)),
+                            const SizedBox(height: 4),
+                            Text('Share your experience & earn 50 Royal Points',
+                              style: AtithyaTypography.bodyElegant.copyWith(fontSize: 13)),
+                          ])),
+                          const Icon(Icons.arrow_forward_ios, size: 14,
+                            color: AtithyaColors.imperialGold),
+                        ])),
+                      ).animate().fadeIn(duration: 600.ms, delay: 500.ms),
                   ],
                 ],
               ),
@@ -434,5 +699,13 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
         Text(value, style: AtithyaTypography.bodyElegant.copyWith(fontSize: 14)),
       ]),
     ]),
+  );
+
+  Widget _folioRow(String label, String amount) => Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    children: [
+      Text(label, style: AtithyaTypography.bodyElegant.copyWith(fontSize: 13, color: AtithyaColors.parchment)),
+      Text(amount, style: AtithyaTypography.bodyElegant.copyWith(fontSize: 13)),
+    ],
   );
 }

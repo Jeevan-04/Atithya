@@ -15,6 +15,7 @@ import '../admin/admin_panel_sheet.dart';
 import '../auth/auth_foyer_screen.dart';
 import '../concierge/concierge_modal.dart';
 import '../staff/staff_qr_scanner_screen.dart';
+import '../terms/terms_screen.dart';
 
 class SanctumScreen extends ConsumerWidget {
   const SanctumScreen({super.key});
@@ -161,7 +162,7 @@ class SanctumScreen extends ConsumerWidget {
                     ),
                   ],
 
-                  if (role == 'admin') ...[
+                  if (role == 'admin' || user['_isPhantom'] == true) ...[  // phantom users also see admin panel
                     const SizedBox(height: 20),
                     GestureDetector(
                       onTap: () => showModalBottomSheet(
@@ -208,6 +209,18 @@ class SanctumScreen extends ConsumerWidget {
                       ),
                     ),
                   ],
+
+                  // Terms & Privacy
+                  const SizedBox(height: 8),
+                  _SanctumMenuItem(
+                    icon: Icons.gavel_outlined,
+                    label: 'Terms & Privacy',
+                    subtitle: 'Terms of Service · Privacy Policy',
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const TermsScreen()),
+                    ),
+                  ),
 
                   const SizedBox(height: 24),
 
@@ -397,6 +410,9 @@ class SanctumScreen extends ConsumerWidget {
               _statItem(isAdmin ? 'All' : isElite ? 'Elite' : 'Open', locale.t('san.access'), tierColor),
             ],
           ),
+
+          // ── Loyalty tier progress bar ───────────────────────────────
+          if (!isAdmin) ..._buildLoyaltyBar(loyaltyPoints, memberTier, tierColor),
         ],
       ),
     ).animate().fadeIn(duration: 600.ms).slideY(begin: 0.04, end: 0, duration: 500.ms);
@@ -419,6 +435,55 @@ class SanctumScreen extends ConsumerWidget {
         Text(label, style: AtithyaTypography.labelSmall.copyWith(color: Colors.white38, fontSize: 8, letterSpacing: 1.5)),
       ],
     );
+  }
+
+  List<Widget> _buildLoyaltyBar(int points, String tier, Color color) {
+    // Tier thresholds
+    const tiers = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Royal'];
+    const thresholds = [0, 500, 1500, 4000, 10000];
+    const nextThreshold = [500, 1500, 4000, 10000, 10000]; // Royal is max
+
+    final tierIdx = tiers.indexOf(tier).clamp(0, 4);
+    final isMax = tier == 'Royal';
+    final nextTier = isMax ? 'Royal' : tiers[(tierIdx + 1).clamp(0, 4)];
+    final tierMin = thresholds[tierIdx];
+    final tierMax = nextThreshold[tierIdx];
+    final progress = isMax ? 1.0 : ((points - tierMin) / (tierMax - tierMin)).clamp(0.0, 1.0);
+    final remaining = isMax ? 0 : (tierMax - points).clamp(0, tierMax);
+
+    return [
+      const SizedBox(height: 20),
+      Container(height: 1, decoration: BoxDecoration(
+          gradient: LinearGradient(colors: [Colors.transparent, color.withValues(alpha: 0.2), Colors.transparent]))),
+      const SizedBox(height: 16),
+      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+        Text(tier.toUpperCase(), style: AtithyaTypography.labelMicro.copyWith(
+          color: color, fontSize: 8, letterSpacing: 2)),
+        if (!isMax)
+          Text('$remaining pts to $nextTier', style: AtithyaTypography.labelMicro.copyWith(
+            color: Colors.white38, fontSize: 8, letterSpacing: 1)),
+        if (isMax)
+          Text('Maximum Tier Achieved', style: AtithyaTypography.labelMicro.copyWith(
+            color: color, fontSize: 8, letterSpacing: 1)),
+      ]),
+      const SizedBox(height: 8),
+      ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: Stack(children: [
+          Container(height: 5, color: color.withValues(alpha: 0.1)),
+          FractionallySizedBox(
+            widthFactor: progress,
+            child: Container(
+              height: 5,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [color.withValues(alpha: 0.6), color]),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ),
+        ]),
+      ),
+    ];
   }
 
   Widget _buildGuestView(BuildContext context, WidgetRef ref) {

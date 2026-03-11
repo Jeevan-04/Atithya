@@ -7,9 +7,12 @@
 // phantom roles. Tabs: System Overview | Estate Management | Staff Roster.
 // =============================================================================
 import 'dart:ui';
+// ignore: avoid_web_libraries_in_flutter
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/colors.dart';
 import '../../../core/typography.dart';
 import '../../../core/network/api_client.dart';
@@ -210,6 +213,21 @@ class _OverviewTab extends ConsumerWidget {
                     ),
                   );
                 }),
+                const SizedBox(height: 32),
+                Text('EXPORT DATA', style: AtithyaTypography.labelMicro.copyWith(color: AtithyaColors.antiqueGold)),
+                const SizedBox(height: 14),
+                _CsvExportButton(
+                  label: 'Export Bookings (CSV)',
+                  icon: Icons.table_chart_outlined,
+                  url: '/api/admin/export/bookings.csv',
+                ),
+                const SizedBox(height: 10),
+                _CsvExportButton(
+                  label: 'Export Users (CSV)',
+                  icon: Icons.people_outline,
+                  url: '/api/admin/export/users.csv',
+                ),
+                const SizedBox(height: 32),
               ],
             ),
     );
@@ -669,6 +687,48 @@ class _StaffTab extends StatelessWidget {
             style: AtithyaTypography.labelMicro.copyWith(
                 fontSize: 9, color: AtithyaColors.pureIvory.withValues(alpha: 0.25), height: 1.8)),
       ],
+    );
+  }
+}
+
+// ── CSV Export Button ─────────────────────────────────────────────────────────
+
+
+class _CsvExportButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final String url; // e.g. /api/admin/export/bookings.csv
+
+  const _CsvExportButton({required this.label, required this.icon, required this.url});
+
+  Future<void> _export() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('auth_token') ?? '';
+    const base = ApiClient.baseUrl; // 'https://atithya-nzqy.onrender.com/api'
+    final apiBase = base.endsWith('/api') ? base.substring(0, base.length - 4) : base;
+    final fullUrl = '$apiBase$url?token=${Uri.encodeComponent(token)}';
+    html.window.open(fullUrl, '_blank');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _export,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        decoration: BoxDecoration(
+          color: AtithyaColors.antiqueGold.withValues(alpha: 0.07),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AtithyaColors.antiqueGold.withValues(alpha: 0.25)),
+        ),
+        child: Row(children: [
+          Icon(icon, color: AtithyaColors.antiqueGold, size: 18),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label, style: AtithyaTypography.bodyElegant.copyWith(
+            color: AtithyaColors.pureIvory, fontSize: 13))),
+          const Icon(Icons.download_outlined, color: AtithyaColors.antiqueGold, size: 18),
+        ]),
+      ),
     );
   }
 }

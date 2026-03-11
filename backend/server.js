@@ -160,8 +160,61 @@ const BookingSchema = new mongoose.Schema({
         checkin1h:  { type: Boolean, default: false },
         checkout3d: { type: Boolean, default: false },
     },
+    // Pre-arrival digital check-in form
+    preArrivalForm: {
+        submitted:     { type: Boolean, default: false },
+        submittedAt:   Date,
+        guestNames:    [String],      // Each guest's full name
+        idNumbers:     [String],      // Govt ID numbers
+        estimatedETA:  String,        // e.g. "15:30"
+        flightOrTrain: String,
+        dietaryNotes:  String,
+        celebrationNote: String,      // anniversary / birthday message
+        vehicleNumber: String,
+        additionalRequests: String,
+    },
 }, { timestamps: true });
 const Booking = mongoose.model('Booking', BookingSchema);
+
+// ── Review Schema ─────────────────────────────────────────────────────────────
+const ReviewSchema = new mongoose.Schema({
+    booking: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', required: true, unique: true },
+    user:    { type: mongoose.Schema.Types.ObjectId, ref: 'User',    required: true },
+    estate:  { type: mongoose.Schema.Types.ObjectId, ref: 'Estate',  required: true },
+    rating:  { type: Number, min: 1, max: 5, required: true },
+    title:   { type: String, default: '' },
+    body:    { type: String, default: '' },
+    tags:    { type: [String], default: [] }, // e.g. ['Impeccable Service', 'Breathtaking Views']
+    isPublic: { type: Boolean, default: true },
+}, { timestamps: true });
+const Review = mongoose.model('Review', ReviewSchema);
+
+// ── Room Status Schema (housekeeping board) ───────────────────────────────────
+const RoomStatusSchema = new mongoose.Schema({
+    estate:      { type: mongoose.Schema.Types.ObjectId, ref: 'Estate', required: true },
+    roomNumber:  { type: String, required: true },
+    floor:       { type: Number, default: 1 },
+    wing:        { type: String, default: '' },
+    status: {
+        type: String,
+        enum: ['Vacant', 'Occupied', 'Cleaning', 'Ready', 'Maintenance', 'Blocked'],
+        default: 'Vacant',
+    },
+    assignedTo:  { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    notes:       { type: String, default: '' },
+    lastUpdated: { type: Date, default: Date.now },
+});
+const RoomStatus = mongoose.model('RoomStatus', RoomStatusSchema);
+
+// ── Availability Block-out Schema (admin managed) ─────────────────────────────
+const BlockoutSchema = new mongoose.Schema({
+    estate:    { type: mongoose.Schema.Types.ObjectId, ref: 'Estate', required: true },
+    startDate: { type: Date, required: true },
+    endDate:   { type: Date, required: true },
+    reason:    { type: String, default: '' }, // 'Maintenance', 'Private Event', 'Renovation'
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+}, { timestamps: true });
+const Blockout = mongoose.model('Blockout', BlockoutSchema);
 
 // Food Menu Schema
 const FoodMenuSchema = new mongoose.Schema({
@@ -226,7 +279,8 @@ const TripPlan = mongoose.model('TripPlan', TripPlanSchema);
 // ══════════════════════════════════════════════════════════════════════════════
 
 const auth = async (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
+    // Accept token from Authorization header OR ?token= query param (for CSV downloads)
+    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
     if (!token) return res.status(401).json({ error: 'No token' });
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -1067,7 +1121,291 @@ app.delete('/api/admin/estates/:id', auth, adminOnly, async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════════
-if (process.env.NODE_ENV !== 'production') {
+// HEALTH CHECK
+// ══════════════════════════════════════════════════════════════════════════════
+app.get('/ping', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString(), version: '1.2.0' }));
+app.get('/api/ping', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString(), version: '1.2.0' }));
+
+// ══════════════════════════════════════════════════════════════════════════════
+// REVIEW ROUTES
+// ══════════════════════════════════════════════════════════════════════════════
+
+// POST /api/reviews — submit a review (must have a checked-out booking for this estate)
+app.post('/api/reviews', auth, async (req, res) => {
+    try {
+        const { bookingId, rating, title, body, tags } = req.body;
+        if (!bookingId || !rating) return res.status(400).json({ error: 'bookingId and rating required' });
+        const booking = await Booking.findOne({ _id: bookingId, user: req.user._id });
+        if (!booking) return res.status(404).json({ error: 'Booking not found' });
+        if (!['Checked Out', 'Cancelled'].includes(booking.status)) {
+            return res.status(400).json({ error: 'Can only review after checkout' });
+        }
+        const existing = await Review.findOne({ booking: bookingId });
+        if (existing) return res.status(409).json({ error: 'Review already submitted' });
+
+        const review = await Review.create({
+            booking: bookingId,
+            user: req.user._id,
+            estate: booking.estate,
+            rating, title, body,
+            tags: tags || [],
+        });
+
+        // Update estate rating average
+        const all = await Review.find({ estate: booking.estate });
+        const avg = all.reduce((s, r) => s + r.rating, 0) / all.length;
+        await Estate.findByIdAndUpdate(booking.estate, {
+            rating: Math.round(avg * 10) / 10,
+            reviewCount: all.length,
+        });
+
+        // Loyalty points for reviewing
+        await User.findByIdAndUpdate(req.user._id, { $inc: { loyaltyPoints: 50 } });
+        await pushNotification(req.user._id, '✍️ Review Received — 50 Points',
+            'Thank you for sharing your experience. 50 Royal Points have been credited to your account.',
+            'loyalty', { type: 'review_points' });
+
+        res.status(201).json(review);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/estates/:id/reviews — public reviews for an estate
+app.get('/api/estates/:id/reviews', async (req, res) => {
+    try {
+        const reviews = await Review.find({ estate: req.params.id, isPublic: true })
+            .populate('user', 'name')
+            .sort({ createdAt: -1 })
+            .limit(50);
+        const avg = reviews.length
+            ? Math.round(reviews.reduce((s, r) => s + r.rating, 0) / reviews.length * 10) / 10
+            : 0;
+        res.json({ reviews, avg, total: reviews.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/bookings/:id/review — check if review exists for a booking
+app.get('/api/bookings/:id/review', auth, async (req, res) => {
+    try {
+        const review = await Review.findOne({ booking: req.params.id, user: req.user._id });
+        res.json(review || null);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PRE-ARRIVAL CHECK-IN FORM
+// ══════════════════════════════════════════════════════════════════════════════
+
+// PUT /api/bookings/:id/pre-arrival — submit pre-arrival form
+app.put('/api/bookings/:id/pre-arrival', auth, async (req, res) => {
+    try {
+        const booking = await Booking.findOne({ _id: req.params.id, user: req.user._id });
+        if (!booking) return res.status(404).json({ error: 'Booking not found' });
+        if (booking.status !== 'Confirmed') return res.status(400).json({ error: 'Booking is not active' });
+
+        const { guestNames, idNumbers, estimatedETA, flightOrTrain, dietaryNotes,
+                celebrationNote, vehicleNumber, additionalRequests } = req.body;
+
+        booking.preArrivalForm = {
+            submitted: true, submittedAt: new Date(),
+            guestNames, idNumbers, estimatedETA, flightOrTrain,
+            dietaryNotes, celebrationNote, vehicleNumber, additionalRequests,
+        };
+        if (vehicleNumber) booking.vehicleNumber = vehicleNumber;
+        await booking.save();
+
+        await pushNotification(req.user._id, '✅ Pre-Arrival Form Submitted',
+            `Your check-in details for ${new Date(booking.checkInDate).toLocaleDateString('en-IN')} have been received. The estate team is preparing your welcome.`,
+            'checkin', { bookingId: booking._id });
+
+        res.json({ ok: true, booking });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/bookings/:id/pre-arrival — fetch pre-arrival form status
+app.get('/api/bookings/:id/pre-arrival', auth, async (req, res) => {
+    try {
+        const booking = await Booking.findOne({ _id: req.params.id, user: req.user._id })
+            .select('preArrivalForm status checkInDate estate')
+            .populate('estate', 'title checkInTime');
+        if (!booking) return res.status(404).json({ error: 'Booking not found' });
+        res.json(booking);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ROOM STATUS BOARD (HOUSEKEEPING)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/rooms/status — get all rooms for staff's linked estate (or estate= query)
+app.get('/api/rooms/status', auth, async (req, res) => {
+    try {
+        const effectiveRole = req.user.role === 'phantom' ? 'admin' : req.user.role;
+        let estateId = req.query.estate;
+        if (!estateId) {
+            if (['manager', 'gate_staff', 'desk_staff', 'housekeeping', 'phantom'].includes(req.user.role)) {
+                estateId = req.user.estateId;
+            }
+        }
+        if (!estateId && effectiveRole !== 'admin') return res.status(400).json({ error: 'estateId required' });
+        const filter = estateId ? { estate: estateId } : {};
+        const rooms = await RoomStatus.find(filter).sort({ floor: 1, roomNumber: 1 });
+        res.json(rooms);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// PATCH /api/rooms/status/:id — update room status
+app.patch('/api/rooms/status/:id', auth, async (req, res) => {
+    try {
+        const { status, notes, assignedTo } = req.body;
+        const room = await RoomStatus.findByIdAndUpdate(
+            req.params.id,
+            { status, notes, assignedTo, lastUpdated: new Date() },
+            { new: true }
+        );
+        if (!room) return res.status(404).json({ error: 'Room not found' });
+        res.json(room);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/rooms/status — add room(s) to estate (admin/manager)
+app.post('/api/rooms/status', auth, async (req, res) => {
+    try {
+        const { estateId, rooms } = req.body; // rooms: [{ roomNumber, floor, wing }]
+        if (!estateId || !rooms?.length) return res.status(400).json({ error: 'estateId and rooms required' });
+        const created = await Promise.all(rooms.map(r =>
+            RoomStatus.findOneAndUpdate(
+                { estate: estateId, roomNumber: r.roomNumber },
+                { estate: estateId, ...r, lastUpdated: new Date() },
+                { upsert: true, new: true }
+            )
+        ));
+        res.json(created);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AVAILABILITY BLOCK-OUT (ADMIN)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/estates/:id/blockouts — public + admin; all block-outs for an estate
+app.get('/api/estates/:id/blockouts', async (req, res) => {
+    try {
+        const blockouts = await Blockout.find({ estate: req.params.id }).sort({ startDate: 1 });
+        res.json(blockouts);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/estates/:id/blockouts — admin creates a block-out
+app.post('/api/estates/:id/blockouts', auth, adminOnly, async (req, res) => {
+    try {
+        const { startDate, endDate, reason } = req.body;
+        const blockout = await Blockout.create({
+            estate: req.params.id, startDate, endDate, reason,
+            createdBy: req.user._id,
+        });
+        res.status(201).json(blockout);
+    } catch(e) { res.status(400).json({ error: e.message }); }
+});
+
+// DELETE /api/estates/:id/blockouts/:bid — remove a block-out
+app.delete('/api/estates/:id/blockouts/:bid', auth, adminOnly, async (req, res) => {
+    try {
+        await Blockout.findOneAndDelete({ _id: req.params.bid, estate: req.params.id });
+        res.json({ ok: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ADMIN CSV EXPORT
+// ══════════════════════════════════════════════════════════════════════════════
+
+// GET /api/admin/export/bookings.csv
+app.get('/api/admin/export/bookings.csv', auth, adminOnly, async (req, res) => {
+    try {
+        const { from, to, status } = req.query;
+        const filter = {};
+        if (from || to) filter.checkInDate = {};
+        if (from) filter.checkInDate.$gte = new Date(from);
+        if (to)   filter.checkInDate.$lte = new Date(to);
+        if (status) filter.status = status;
+
+        const bookings = await Booking.find(filter)
+            .populate('user', 'name phoneNumber')
+            .populate('estate', 'title city')
+            .sort({ createdAt: -1 })
+            .limit(5000)
+            .lean();
+
+        const header = 'Booking ID,Estate,City,Guest Name,Phone,Room Type,Check-In,Check-Out,Nights,Guests,Amount,Status,Payment ID\n';
+        const rows = bookings.map(b => {
+            const nights = b.checkOutDate
+                ? Math.round((new Date(b.checkOutDate) - new Date(b.checkInDate)) / 86400000)
+                : 1;
+            return [
+                b._id, b.estate?.title || '', b.estate?.city || '',
+                b.user?.name || '', b.user?.phoneNumber || '',
+                b.roomType || '', b.checkInDate?.toISOString()?.split('T')[0] || '',
+                b.checkOutDate?.toISOString()?.split('T')[0] || '',
+                nights, b.guests || 1, b.totalAmount || 0,
+                b.status || '', b.paymentId || '',
+            ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+        });
+
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="atithya_bookings.csv"');
+        res.send(header + rows.join('\n'));
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/admin/export/users.csv
+app.get('/api/admin/export/users.csv', auth, adminOnly, async (req, res) => {
+    try {
+        const users = await User.find({ role: { $ne: 'phantom' } })
+            .sort({ createdAt: -1 }).limit(10000).lean();
+        const header = 'Phone,Name,Email,Role,Tier,Loyalty Points,Food Pref,Language,Verified,Joined\n';
+        const rows = users.map(u => [
+            u.phoneNumber, u.name || '', u.email || '', u.role,
+            u.memberTier || 'Bronze', u.loyaltyPoints || 0,
+            u.foodPreference || '', u.language || 'English',
+            u.isVerified ? 'Yes' : 'No',
+            u.createdAt?.toISOString()?.split('T')[0] || '',
+        ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="atithya_users.csv"');
+        res.send(header + rows.join('\n'));
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// LOYALTY — redeem points
+// ══════════════════════════════════════════════════════════════════════════════
+
+// POST /api/loyalty/redeem — redeem points for a discount on next booking
+app.post('/api/loyalty/redeem', auth, async (req, res) => {
+    try {
+        const { points } = req.body; // multiples of 100 = ₹1 each
+        if (!points || points < 100) return res.status(400).json({ error: 'Minimum 100 points to redeem' });
+        const user = await User.findById(req.user._id);
+        if ((user.loyaltyPoints || 0) < points) return res.status(400).json({ error: 'Insufficient points' });
+        const discount = Math.floor(points / 100); // ₹1 per 100 pts
+        user.loyaltyPoints -= points;
+        await user.save();
+        // Return a discount coupon code (simplified — no code table needed)
+        const code = `ROYAL${points}P${Date.now().toString(36).toUpperCase()}`;
+        res.json({ ok: true, discount, code, pointsUsed: points, remaining: user.loyaltyPoints });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET /api/loyalty/tiers — tier structure reference
+app.get('/api/loyalty/tiers', (req, res) => {
+    res.json([
+        { tier: 'Bronze',   minPoints: 0,    perks: ['Priority booking', 'Welcome gift'],                        color: '#CD7F32' },
+        { tier: 'Silver',   minPoints: 500,  perks: ['Early check-in', '5% room discount'],                     color: '#C0C0C0' },
+        { tier: 'Gold',     minPoints: 1500, perks: ['Free room upgrade', '10% discount', 'Spa credit ₹2000'],   color: '#FFD700' },
+        { tier: 'Platinum', minPoints: 4000, perks: ['Suite priority', '15% discount', 'Airport transfer'],      color: '#E5E4E2' },
+        { tier: 'Royal',    minPoints: 10000, perks: ['All Platinum + personal butler', 'Exclusive estates', '20% discount'], color: '#9B7DEC' },
+    ]);
+});
     // DEV: upgrade a user to elite for testing
     app.post('/api/auth/upgrade-to-elite', async (req, res) => {
         const { phoneNumber } = req.body;

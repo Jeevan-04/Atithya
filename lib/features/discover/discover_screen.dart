@@ -51,6 +51,8 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
   final ScrollController _scrollCtrl = ScrollController();
   String? _selectedCity;
   String _searchQuery = '';
+  String? _selectedCategory;
+  int? _maxPrice; // null = any price
 
   // ── Nearby location state ────────────────────────────────────────────────
   final _api = ApiClient();
@@ -478,7 +480,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
 
   Widget _buildEstateList(EstateState state, BuildContext context) {
     final all = state.estates;
-    final estates = _searchQuery.isEmpty
+    var estates = _searchQuery.isEmpty
         ? all
         : all.where((e) {
             final t = (e['title'] as String? ?? '').toLowerCase();
@@ -486,6 +488,22 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
             final q = _searchQuery.toLowerCase();
             return t.contains(q) || c.contains(q);
           }).toList();
+
+    // Apply category filter
+    if (_selectedCategory != null) {
+      estates = estates.where((e) {
+        final cat = (e['category'] as String? ?? '').toLowerCase();
+        return cat.contains(_selectedCategory!.toLowerCase());
+      }).toList();
+    }
+
+    // Apply price filter
+    if (_maxPrice != null) {
+      estates = estates.where((e) {
+        final price = (e['pricePerNight'] as num?)?.toInt() ?? 0;
+        return price <= _maxPrice!;
+      }).toList();
+    }
 
     return CustomScrollView(
       key: const ValueKey('estates'),
@@ -495,12 +513,21 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen> {
         SliverToBoxAdapter(child: _estateHeader(context)),
         SliverToBoxAdapter(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
             child: _SearchBar(
               controller: _searchCtrl,
               hint: 'Search estates in $_selectedCity…',
               onChanged: (q) => setState(() => _searchQuery = q),
             ),
+          ),
+        ),
+        // ── Filter chips ────────────────────────────────────────────────────
+        SliverToBoxAdapter(
+          child: _FilterRow(
+            selectedCategory: _selectedCategory,
+            maxPrice: _maxPrice,
+            onCategoryChanged: (cat) => setState(() => _selectedCategory = cat),
+            onPriceChanged: (price) => setState(() => _maxPrice = price),
           ),
         ),
         if (state.isLoading)
@@ -1030,6 +1057,104 @@ class _SearchBar extends StatelessWidget {
           else
             const SizedBox(width: 14),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILTER ROW — category pills + price range
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FilterRow extends StatelessWidget {
+  final String? selectedCategory;
+  final int? maxPrice;
+  final ValueChanged<String?> onCategoryChanged;
+  final ValueChanged<int?> onPriceChanged;
+
+  const _FilterRow({
+    required this.selectedCategory,
+    required this.maxPrice,
+    required this.onCategoryChanged,
+    required this.onPriceChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const categories = ['Palace', 'Heritage', 'Villa', 'Resort', 'Treehouse', 'Haveli'];
+    const prices = <String, int?>{
+      'Any Price': null,
+      'Under ₹10K': 10000,
+      'Under ₹20K': 20000,
+      'Under ₹50K': 50000,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Category pills
+        SizedBox(
+          height: 38,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: [
+              _chip(
+                label: 'All',
+                selected: selectedCategory == null,
+                onTap: () => onCategoryChanged(null),
+              ),
+              ...categories.map((cat) => _chip(
+                label: cat,
+                selected: selectedCategory == cat,
+                onTap: () => onCategoryChanged(selectedCategory == cat ? null : cat),
+              )),
+            ],
+          ),
+        ),
+        const SizedBox(height: 6),
+        // Price pills
+        SizedBox(
+          height: 34,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            children: prices.entries.map((e) => _chip(
+              label: e.key,
+              selected: maxPrice == e.value,
+              onTap: () => onPriceChanged(e.value),
+              small: true,
+            )).toList(),
+          ),
+        ),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _chip({required String label, required bool selected, required VoidCallback onTap, bool small = false}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        margin: const EdgeInsets.only(right: 8),
+        padding: EdgeInsets.symmetric(horizontal: small ? 10 : 14, vertical: small ? 5 : 8),
+        decoration: BoxDecoration(
+          color: selected
+              ? AtithyaColors.imperialGold.withValues(alpha: 0.15)
+              : const Color(0xFF111318),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected
+                ? AtithyaColors.imperialGold.withValues(alpha: 0.6)
+                : AtithyaColors.imperialGold.withValues(alpha: 0.18),
+          ),
+        ),
+        child: Text(label, style: AtithyaTypography.labelMicro.copyWith(
+          color: selected ? AtithyaColors.imperialGold : AtithyaColors.ashWhite,
+          fontSize: small ? 8 : 9,
+          letterSpacing: 1.5,
+        )),
       ),
     );
   }
