@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/api_client.dart';
+import 'auth_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Model
@@ -80,6 +81,14 @@ class NotificationsState {
 class NotificationsNotifier extends Notifier<NotificationsState> {
   @override
   NotificationsState build() {
+    final isAuthenticated = ref.watch(
+      authProvider.select((s) => s.isAuthenticated),
+    );
+    // Only fetch for authenticated (non-guest) users.
+    // When the user logs out, Riverpod rebuilds this and returns empty state.
+    if (!isAuthenticated) {
+      return const NotificationsState();
+    }
     Future.microtask(() => fetchNotifications());
     return const NotificationsState(isLoading: true);
   }

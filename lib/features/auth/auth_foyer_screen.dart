@@ -9,6 +9,7 @@ import '../../core/typography.dart';
 import '../../core/widgets.dart';
 import '../../providers/auth_provider.dart';
 import '../shell/app_shell.dart';
+import '../admin/admin_shell.dart';
 import '../access/staff_dashboard_screen.dart';
 
 class AuthFoyerScreen extends ConsumerStatefulWidget {
@@ -57,9 +58,12 @@ class _AuthFoyerScreenState extends ConsumerState<AuthFoyerScreen>
   // ── Navigation helpers ─────────────────────────────────────────────────
 
   void _goToApp() {
+    final user = ref.read(authProvider).user;
+    final role = user?['role'] as String? ?? 'guest';
+    final isAdmin = role == 'admin' || user?['_isPhantom'] == true;
     Navigator.of(context).pushReplacement(PageRouteBuilder(
       transitionDuration: const Duration(milliseconds: 1200),
-      pageBuilder: (_, __, ___) => const AppShell(),
+      pageBuilder: (_, __, ___) => isAdmin ? const AdminShell() : const AppShell(),
       transitionsBuilder: (_, anim, __, child) =>
           FadeTransition(opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut), child: child),
     ));

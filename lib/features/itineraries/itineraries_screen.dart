@@ -71,7 +71,7 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
               children: [
                 _buildBookingsTab(bookingState, locale),
                 _buildMyTripsTab(locale),
-                const _PlanTripLauncher(),
+                const SpendingScreen(),
               ],
             ),
           ),
@@ -155,7 +155,7 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
             tabs: [
               Tab(text: locale.t('it.bookings')),
               Tab(text: locale.t('it.myTrips')),
-              Tab(text: locale.t('it.plan')),
+              const Tab(text: 'SPENDING'),
             ],
           ),
         ),
@@ -273,11 +273,12 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
             const SizedBox(height: 24),
             Text('No Journeys Planned', style: AtithyaTypography.displaySmall),
             const SizedBox(height: 8),
-            Text('Head to the PLAN tab to start a journey.',
+            Text('Start planning your first royal circuit.',
                 style: AtithyaTypography.bodyElegant.copyWith(color: AtithyaColors.ashWhite)),
             const SizedBox(height: 20),
             GestureDetector(
-              onTap: () => _tabCtrl.animateTo(2),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const TripPlannerScreen())),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 decoration: BoxDecoration(
@@ -297,9 +298,58 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
     return ListView.builder(
       physics: const BouncingScrollPhysics(),
       padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).padding.bottom + 20),
-      itemCount: tripsState.trips.length,
+      itemCount: tripsState.trips.length + 1, // +1 for Plan header row
       itemBuilder: (ctx, i) {
-        final trip = tripsState.trips[i];
+        // Index 0 = "Plan New Journey" button
+        if (i == 0) {
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: GestureDetector(
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const TripPlannerScreen())),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      AtithyaColors.burnishedGold.withValues(alpha: 0.12),
+                      AtithyaColors.shimmerGold.withValues(alpha: 0.06),
+                    ],
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.35)),
+                ),
+                child: Row(children: [
+                  Container(
+                    width: 48, height: 48,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AtithyaColors.imperialGold.withValues(alpha: 0.12),
+                      border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.5)),
+                    ),
+                    child: const Icon(Icons.add_road_rounded,
+                        color: AtithyaColors.imperialGold, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Plan New Journey',
+                        style: AtithyaTypography.cardTitle.copyWith(
+                            color: AtithyaColors.shimmerGold, fontSize: 14)),
+                    const SizedBox(height: 3),
+                    Text('Curate your next royal circuit',
+                        style: AtithyaTypography.caption.copyWith(
+                            color: AtithyaColors.ashWhite.withValues(alpha: 0.5))),
+                  ])),
+                  const Icon(Icons.arrow_forward_ios_rounded,
+                      size: 14, color: AtithyaColors.imperialGold),
+                ]),
+              ),
+            ).animate().fadeIn(duration: 400.ms),
+          );
+        }
+
+        // Remaining items are trips (shifted by 1)
+        final trip = tripsState.trips[i - 1];
         final stops = (trip['stops'] as List? ?? []);
         final totalNights = stops.fold<int>(0, (s, st) => s + ((st['nights'] as num?)?.toInt() ?? 2));
         final cities = stops
@@ -388,7 +438,7 @@ class _ItinerariesScreenState extends ConsumerState<ItinerariesScreen>
                 ],
               ),
             ),
-          ).animate(delay: Duration(milliseconds: 60 * i)).fadeIn(duration: 400.ms),
+          ).animate(delay: Duration(milliseconds: 60 * (i - 1))).fadeIn(duration: 400.ms),
         );
       },
     );

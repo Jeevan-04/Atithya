@@ -67,7 +67,9 @@ class SanctumScreen extends ConsumerWidget {
                     icon: Icons.notifications_outlined,
                     label: locale.t('san.notifications'),
                     subtitle: locale.t('san.notifSub'),
-                    badge: ref.watch(notificationsProvider).unreadCount,
+                    badge: ref.watch(authProvider).isAuthenticated
+                        ? ref.watch(notificationsProvider).unreadCount
+                        : 0,
                     onTap: () => showModalBottomSheet(
                       context: context,
                       isScrollControlled: true,

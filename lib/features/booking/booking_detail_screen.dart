@@ -12,6 +12,7 @@ import '../../core/network/api_client.dart';
 import '../../providers/booking_provider.dart';
 import '../dossier/dossier_screen.dart';
 import 'pre_arrival_form_screen.dart';
+import 'invoice_screen.dart';
 
 class BookingDetailScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> booking;
@@ -23,6 +24,7 @@ class BookingDetailScreen extends ConsumerStatefulWidget {
 
 class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
   bool _cancelling = false;
+  bool _obscureWifi = true;
   Map<String, dynamic>? _existingReview;
   bool _reviewLoaded = false;
   bool _showReviewForm = false;
@@ -306,11 +308,15 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     const SizedBox(height: 16),
                     Container(height: 1, color: AtithyaColors.imperialGold.withValues(alpha: 0.1)),
                     const SizedBox(height: 14),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                      _chip(Icons.nights_stay_outlined, '$nights night${nights != 1 ? 's' : ''}'),
-                      _chip(Icons.people_outline, '${_b['guests'] ?? 2} guests'),
-                      _chip(Icons.bed_outlined, _b['roomType']?.toString() ?? 'Deluxe'),
-                    ]),
+                    Wrap(
+                      alignment: WrapAlignment.spaceAround,
+                      spacing: 16, runSpacing: 8,
+                      children: [
+                        _chip(Icons.nights_stay_outlined, '$nights night${nights != 1 ? 's' : ''}'),
+                        _chip(Icons.people_outline, '${_b['guests'] ?? 2} guests'),
+                        _chip(Icons.bed_outlined, _b['roomType']?.toString() ?? 'Deluxe'),
+                      ],
+                    ),
                   ])).animate().fadeIn(duration: 700.ms, delay: 100.ms),
 
                   const SizedBox(height: 14),
@@ -352,22 +358,30 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     children: [
                       _label('PAYMENT'),
                       const SizedBox(height: 16),
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Row(children: [
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Text('TOTAL PAID', style: AtithyaTypography.labelMicro.copyWith(
                             color: AtithyaColors.ashWhite, fontSize: 9, letterSpacing: 2)),
                           const SizedBox(height: 6),
-                          Text('₹${NumberFormat('#,##,###').format(amt.toInt())}',
-                            style: AtithyaTypography.price.copyWith(fontSize: 26, color: AtithyaColors.shimmerGold)),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text('₹${NumberFormat('#,##,###').format(amt.toInt())}',
+                              style: AtithyaTypography.price.copyWith(fontSize: 26, color: AtithyaColors.shimmerGold)),
+                          ),
                           Text('for $nights night${nights != 1 ? 's' : ''}',
                             style: AtithyaTypography.caption.copyWith(color: AtithyaColors.ashWhite)),
-                        ]),
+                        ])),
+                        const SizedBox(width: 16),
                         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                           Text('PER NIGHT', style: AtithyaTypography.labelMicro.copyWith(
                             color: AtithyaColors.ashWhite, fontSize: 9, letterSpacing: 2)),
                           const SizedBox(height: 6),
-                          Text('₹${NumberFormat('#,##,###').format((amt / nights).round())}',
-                            style: AtithyaTypography.displaySmall.copyWith(color: AtithyaColors.pearl, fontSize: 16)),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text('₹${NumberFormat('#,##,###').format((amt / nights).round())}',
+                              style: AtithyaTypography.displaySmall.copyWith(color: AtithyaColors.pearl, fontSize: 16)),
+                          ),
                         ]),
                       ]),
                       if (_b['paymentId'] != null) ...[
@@ -397,8 +411,72 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                     ],
                   )).animate().fadeIn(duration: 700.ms, delay: 300.ms),
 
-                  // ── QR Code ───────────────────────────────────────────────
-                  if (qrData != null && qrData.isNotEmpty) ...[
+                  // ── QR Code + WiFi ────────────────────────────────────
+                  if (status == 'Cancelled') ...[
+                    const SizedBox(height: 14),
+                    _card(child: Column(children: [
+                      Row(children: [
+                        Container(
+                          width: 36, height: 36,
+                          decoration: BoxDecoration(
+                            color: AtithyaColors.errorRed.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Icon(Icons.cancel_outlined,
+                            color: AtithyaColors.errorRed, size: 18),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text('BOOKING CANCELLED', style: AtithyaTypography.labelMicro.copyWith(
+                            color: AtithyaColors.errorRed, letterSpacing: 2.5, fontSize: 9)),
+                          const SizedBox(height: 4),
+                          Text('This reservation was cancelled. Refund will be processed within 5–7 working days.',
+                            style: AtithyaTypography.caption.copyWith(
+                              color: AtithyaColors.ashWhite.withValues(alpha: 0.45), fontSize: 11, height: 1.5)),
+                        ])),
+                      ]),
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AtithyaColors.errorRed.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AtithyaColors.errorRed.withValues(alpha: 0.15)),
+                        ),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Text('BOOKING TOTAL', style: AtithyaTypography.labelMicro.copyWith(
+                              color: AtithyaColors.ashWhite.withValues(alpha: 0.35),
+                              letterSpacing: 2, fontSize: 8)),
+                            Text('₹${NumberFormat('#,##,###').format(amt.toInt())}',
+                              style: AtithyaTypography.caption.copyWith(
+                                fontSize: 13, color: AtithyaColors.ashWhite.withValues(alpha: 0.45),
+                                decoration: TextDecoration.lineThrough)),
+                          ]),
+                          const SizedBox(height: 8),
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Text('CANCELLATION FEE (20%)', style: AtithyaTypography.labelMicro.copyWith(
+                              color: AtithyaColors.errorRed.withValues(alpha: 0.7),
+                              letterSpacing: 1.5, fontSize: 8)),
+                            Text('-₹${NumberFormat('#,##,###').format((amt * 0.2).round())}',
+                              style: AtithyaTypography.caption.copyWith(
+                                fontSize: 13, color: AtithyaColors.errorRed.withValues(alpha: 0.7))),
+                          ]),
+                          const SizedBox(height: 10),
+                          Container(height: 0.5, color: const Color(0xFF4DB6AC).withValues(alpha: 0.3)),
+                          const SizedBox(height: 10),
+                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                            Text('REFUND AMOUNT', style: AtithyaTypography.labelMicro.copyWith(
+                              color: const Color(0xFF4DB6AC), letterSpacing: 2, fontSize: 8)),
+                            Text('₹${NumberFormat('#,##,###').format((amt * 0.8).round())}',
+                              style: AtithyaTypography.price.copyWith(
+                                fontSize: 16, color: const Color(0xFF80CBC4))),
+                          ]),
+                        ]),
+                      ),
+                    ])).animate().fadeIn(duration: 700.ms, delay: 400.ms),
+                  ] else if (qrData != null && qrData.isNotEmpty) ...[
                     const SizedBox(height: 14),
                     _card(child: Column(children: [
                       _label('ENTRY QR CODE'),
@@ -414,6 +492,61 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                         ),
                         child: QrImageView(data: qrData, size: 160, backgroundColor: Colors.white),
                       )),
+
+                      // ── WiFi details ────────────────────────────────────
+                      if ((_estate['wifiPwd'] ?? '').toString().isNotEmpty) ...[  
+                        const SizedBox(height: 20),
+                        Container(height: 1,
+                          color: AtithyaColors.imperialGold.withValues(alpha: 0.1)),
+                        const SizedBox(height: 16),
+                        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Container(
+                            width: 38, height: 38,
+                            decoration: BoxDecoration(
+                              color: AtithyaColors.imperialGold.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.wifi_rounded,
+                              color: AtithyaColors.imperialGold, size: 18),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Text('WIFI ACCESS', style: AtithyaTypography.labelMicro.copyWith(
+                                color: AtithyaColors.imperialGold, letterSpacing: 3, fontSize: 8)),
+                              const SizedBox(height: 4),
+                              Text(
+                                (_estate['wifiName'] ?? 'Atithya Estate').toString(),
+                                style: AtithyaTypography.bodyElegant.copyWith(
+                                  fontSize: 13, color: AtithyaColors.pearl)),
+                              const SizedBox(height: 4),
+                              Row(children: [
+                                Text(
+                                  _obscureWifi
+                                    ? '••••••••••'
+                                    : (_estate['wifiPwd'] ?? '').toString(),
+                                  style: AtithyaTypography.bodyElegant.copyWith(
+                                    fontSize: 13,
+                                    color: AtithyaColors.shimmerGold,
+                                    letterSpacing: _obscureWifi ? 3 : 0.5,
+                                    fontFamily: _obscureWifi ? null : 'monospace'),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(width: 10),
+                                GestureDetector(
+                                  onTap: () => setState(() => _obscureWifi = !_obscureWifi),
+                                  child: Icon(
+                                    _obscureWifi
+                                      ? Icons.visibility_outlined
+                                      : Icons.visibility_off_outlined,
+                                    color: AtithyaColors.imperialGold.withValues(alpha: 0.6),
+                                    size: 16),
+                                ),
+                              ]),
+                            ]),
+                          ),
+                        ]),
+                      ],
                     ])).animate().fadeIn(duration: 700.ms, delay: 400.ms),
                   ],
 
@@ -474,15 +607,25 @@ class _BookingDetailScreenState extends ConsumerState<BookingDetailScreen> {
                       children: [
                         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                           _label('FOLIO / INVOICE'),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AtithyaColors.imperialGold.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.2)),
+                          GestureDetector(
+                            onTap: () => Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => InvoiceScreen(booking: _b),
+                            )),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AtithyaColors.imperialGold.withValues(alpha: 0.08),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.2)),
+                              ),
+                              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                const Icon(Icons.download_outlined,
+                                  color: AtithyaColors.imperialGold, size: 11),
+                                const SizedBox(width: 4),
+                                Text('DOWNLOAD', style: AtithyaTypography.labelMicro.copyWith(
+                                  color: AtithyaColors.imperialGold, letterSpacing: 1.5, fontSize: 8)),
+                              ]),
                             ),
-                            child: Text('DOWNLOAD', style: AtithyaTypography.labelMicro.copyWith(
-                              color: AtithyaColors.imperialGold, letterSpacing: 1.5, fontSize: 8)),
                           ),
                         ]),
                         const SizedBox(height: 16),

@@ -53,6 +53,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     for (final b in bookings) {
       final ci = _cin(b as Map);
       if (ci == null) continue;
+      if (b['status'] == 'Cancelled') continue;
       final co = _cout(b) ?? ci;
       final day = DateTime(d.year, d.month, d.day);
       final ciDay = DateTime(ci.year, ci.month, ci.day);
@@ -116,7 +117,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     return Column(children: [
       _buildCalendar(allBookings),
       _buildGantt(monthBookings),
-      _buildSpending(allBookings),
     ]);
   }
 
@@ -219,11 +219,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   }
 
   Widget _buildWeekRow(List<DateTime?> weekDays, List bookings, DateTime today) {
-    // Find all booking segments in this week
+    // Find all booking segments in this week (skip cancelled)
     final segments = <_BookingSegment>[];
     for (final b in bookings) {
       final ci = _cin(b as Map);
       if (ci == null) continue;
+      if (b['status'] == 'Cancelled') continue;
       final co = _cout(b) ?? ci;
       final ciDay = DateTime(ci.year, ci.month, ci.day);
       final coDay = DateTime(co.year, co.month, co.day);
@@ -657,6 +658,348 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     if (amt >= 100000) return '${(amt / 100000).toStringAsFixed(1)}L';
     if (amt >= 1000) return '${(amt / 1000).toStringAsFixed(0)}K';
     return amt.toStringAsFixed(0);
+  }
+} // end _CalendarScreenState
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SpendingScreen — standalone spending overview widget used by other tabs
+// ─────────────────────────────────────────────────────────────────────────────
+
+class SpendingScreen extends ConsumerWidget {
+  const SpendingScreen({super.key});
+
+  DateTime? _cin(Map b) => DateTime.tryParse(b['checkInDate']?.toString() ?? '');
+  DateTime? _cout(Map b) {
+    final d = DateTime.tryParse(b['checkOutDate']?.toString() ?? '');
+    return d ?? _cin(b);
+  }
+
+  double _totalSpent(List bookings) => bookings
+      .where((b) => (b as Map)['status'] != 'Cancelled')
+      .fold(0.0, (sum, b) => sum + (((b as Map)['totalAmount'] as num?) ?? 0));
+
+  double _totalRefunded(List bookings) => bookings
+      .where((b) => (b as Map)['status'] == 'Cancelled')
+      .fold(0.0, (sum, b) => sum + (((b as Map)['totalAmount'] as num?) ?? 0) * 0.8);
+
+  Map<String, double> _spendByMonth(List bookings) {
+    final m = <String, double>{};
+    for (final b in bookings) {
+      if ((b as Map)['status'] == 'Cancelled') continue;
+      final ci = _cin(b);
+      if (ci == null) continue;
+      final key = DateFormat('MMM yy').format(ci);
+      m[key] = (m[key] ?? 0) + ((b['totalAmount'] as num?) ?? 0);
+    }
+    return m;
+  }
+
+  String _shortAmount(double amt) {
+    if (amt >= 10000000) return '${(amt / 10000000).toStringAsFixed(1)}Cr';
+    if (amt >= 100000) return '${(amt / 100000).toStringAsFixed(1)}L';
+    if (amt >= 1000) return '${(amt / 1000).toStringAsFixed(0)}K';
+    return amt.toStringAsFixed(0);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bookingState = ref.watch(bookingProvider);
+    final allBookings = bookingState.bookings;
+
+    if (bookingState.isLoading) {
+      return const Center(child: CircularProgressIndicator(
+          color: AtithyaColors.imperialGold, strokeWidth: 1.5));
+    }
+
+    final total = _totalSpent(allBookings);
+    final refunded = _totalRefunded(allBookings);
+    final byMonth = _spendByMonth(allBookings);
+    final confirmedBookings = allBookings.where((b) => (b as Map)['status'] != 'Cancelled').toList();
+
+    if (byMonth.isEmpty) {
+      return Center(
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Icon(Icons.account_balance_wallet_outlined,
+              color: AtithyaColors.imperialGold.withValues(alpha: 0.4), size: 48),
+          const SizedBox(height: 16),
+          Text('No spending data yet', style: AtithyaTypography.displaySmall.copyWith(fontSize: 18)),
+          const SizedBox(height: 8),
+          Text('Make your first booking to see insights.',
+              style: AtithyaTypography.bodyElegant.copyWith(color: AtithyaColors.ashWhite)),
+        ]),
+      );
+    }
+
+    final maxSpend = byMonth.values.reduce((a, b) => a > b ? a : b);
+    final now = DateTime.now();
+    final currentMonthKey = DateFormat('MMM yy').format(now);
+
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).padding.bottom + 80),
+      children: [
+        // Section header
+        Row(children: [
+          Container(width: 3, height: 16, color: AtithyaColors.royalMaroon),
+          const SizedBox(width: 10),
+          Text('SPENDING OVERVIEW', style: AtithyaTypography.labelMicro.copyWith(
+              color: AtithyaColors.imperialGold, letterSpacing: 3, fontSize: 9)),
+        ]),
+        const SizedBox(height: 16),
+
+        // Summary stat cards
+        Row(children: [
+          _statCard('TOTAL SPENT',
+              '₹${NumberFormat('#,##,###').format(total.toInt())}',
+              Icons.account_balance_wallet_outlined),
+          const SizedBox(width: 12),
+          _statCard('STAYS', confirmedBookings.length.toString(), Icons.hotel_outlined),
+          const SizedBox(width: 12),
+          _statCard('REFUNDED',
+              refunded > 0 ? '₹${NumberFormat('#,##,###').format(refunded.toInt())}' : '₹0',
+              Icons.currency_exchange_outlined, refund: refunded > 0),
+        ]).animate().fadeIn(duration: 600.ms),
+
+        const SizedBox(height: 20),
+
+        // Monthly bar chart
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFF111318),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.12)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('MONTHLY SPEND', style: AtithyaTypography.labelMicro.copyWith(
+                color: AtithyaColors.imperialGold, letterSpacing: 3, fontSize: 9)),
+            const SizedBox(height: 18),
+            // Y-axis labels on the left
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Y-axis
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text('₹${_shortAmount(maxSpend)}',
+                        style: AtithyaTypography.caption.copyWith(
+                            fontSize: 7, color: AtithyaColors.ashWhite.withValues(alpha: 0.35))),
+                    const SizedBox(height: 43),
+                    Text('₹${_shortAmount(maxSpend * 0.5)}',
+                        style: AtithyaTypography.caption.copyWith(
+                            fontSize: 7, color: AtithyaColors.ashWhite.withValues(alpha: 0.35))),
+                    const SizedBox(height: 43),
+                    Text('₹0',
+                        style: AtithyaTypography.caption.copyWith(
+                            fontSize: 7, color: AtithyaColors.ashWhite.withValues(alpha: 0.35))),
+                  ],
+                ),
+                const SizedBox(width: 6),
+                // Bars
+                Expanded(
+                  child: Stack(
+                    children: [
+                      // Reference lines
+                      Column(
+                        children: [
+                          Container(height: 0.5,
+                              color: AtithyaColors.imperialGold.withValues(alpha: 0.12)),
+                          const SizedBox(height: 49),
+                          Container(height: 0.5,
+                              color: AtithyaColors.imperialGold.withValues(alpha: 0.08)),
+                          const SizedBox(height: 49),
+                          Container(height: 0.5,
+                              color: AtithyaColors.imperialGold.withValues(alpha: 0.06)),
+                        ],
+                      ),
+                      // Bars row
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: byMonth.entries.map((e) {
+                          final frac = maxSpend > 0 ? e.value / maxSpend : 0.0;
+                          final isCurrent = e.key == currentMonthKey;
+                          return Expanded(child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Column(mainAxisSize: MainAxisSize.min, children: [
+                              Text('₹${_shortAmount(e.value)}',
+                                  style: AtithyaTypography.caption.copyWith(
+                                      fontSize: 7,
+                                      color: isCurrent
+                                          ? AtithyaColors.shimmerGold
+                                          : AtithyaColors.imperialGold.withValues(alpha: 0.7)),
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 3),
+                              Container(
+                                height: 100 * frac.clamp(0.04, 1.0),
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.bottomCenter, end: Alignment.topCenter,
+                                    colors: isCurrent
+                                        ? [AtithyaColors.burnishedGold, AtithyaColors.shimmerGold]
+                                        : [AtithyaColors.imperialGold.withValues(alpha: 0.55),
+                                           AtithyaColors.imperialGold.withValues(alpha: 0.3)],
+                                  ),
+                                  borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
+                                ),
+                              ),
+                              const SizedBox(height: 5),
+                              Text(e.key, style: AtithyaTypography.caption.copyWith(
+                                  fontSize: 8,
+                                  fontWeight: isCurrent ? FontWeight.w700 : FontWeight.normal,
+                                  color: isCurrent
+                                      ? AtithyaColors.imperialGold
+                                      : AtithyaColors.ashWhite.withValues(alpha: 0.4)),
+                                  textAlign: TextAlign.center,
+                                  overflow: TextOverflow.ellipsis),
+                            ]),
+                          ));
+                        }).toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ]),
+        ).animate().fadeIn(duration: 700.ms, delay: 200.ms),
+
+        const SizedBox(height: 20),
+
+        // Per-booking breakdown
+        ...allBookings.asMap().entries.map((entry) {
+          final b = entry.value as Map;
+          final i = entry.key;
+          final ci = _cin(b);
+          if (ci == null) return const SizedBox.shrink();
+          final estate = b['estate'] as Map? ?? {};
+          final amt = (b['totalAmount'] as num?) ?? 0;
+          final status = b['status'] as String? ?? '';
+          final isCancelled = status == 'Cancelled';
+
+          return GestureDetector(
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => BookingDetailScreen(booking: Map<String, dynamic>.from(b)),
+            )),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF111318),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AtithyaColors.imperialGold.withValues(
+                    alpha: isCancelled ? 0.06 : 0.12)),
+              ),
+              child: Row(children: [
+                Container(
+                  width: 3, height: 36,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      colors: isCancelled
+                          ? [AtithyaColors.errorRed.withValues(alpha: 0.5),
+                             AtithyaColors.errorRed.withValues(alpha: 0.2)]
+                          : [AtithyaColors.burnishedGold, AtithyaColors.shimmerGold],
+                    ),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(estate['title'] ?? 'Estate', style: AtithyaTypography.bodyElegant.copyWith(
+                      fontSize: 13,
+                      color: isCancelled
+                          ? AtithyaColors.ashWhite.withValues(alpha: 0.5)
+                          : AtithyaColors.pearl)),
+                  Text(DateFormat('MMM yyyy').format(ci), style: AtithyaTypography.caption.copyWith(
+                      color: AtithyaColors.ashWhite.withValues(alpha: 0.4), fontSize: 11)),
+                ])),
+                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                  if (isCancelled) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4DB6AC).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                            color: const Color(0xFF4DB6AC).withValues(alpha: 0.3)),
+                      ),
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                        Text('80% REFUNDED', style: AtithyaTypography.labelMicro.copyWith(
+                            fontSize: 7, letterSpacing: 1.5,
+                            color: const Color(0xFF4DB6AC))),
+                        Text('₹${NumberFormat('#,##,###').format((amt * 0.8).round())}',
+                            style: AtithyaTypography.price.copyWith(
+                                fontSize: 12,
+                                color: const Color(0xFF80CBC4))),
+                        Text('of ₹${NumberFormat('#,##,###').format(amt.toInt())}',
+                            style: AtithyaTypography.caption.copyWith(
+                                fontSize: 8,
+                                color: const Color(0xFF4DB6AC).withValues(alpha: 0.6))),
+                      ]),
+                    ),
+                  ] else ...[
+                    Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                      Text('₹${NumberFormat('#,##,###').format(amt.toInt())}',
+                          style: AtithyaTypography.price.copyWith(
+                              fontSize: 13, color: AtithyaColors.shimmerGold)),
+                      Text('${_cout(b)?.difference(ci).inDays.clamp(1, 999) ?? 1}n',
+                          style: AtithyaTypography.caption.copyWith(
+                              color: AtithyaColors.ashWhite.withValues(alpha: 0.4),
+                              fontSize: 10)),
+                    ]),
+                  ],
+                ]),
+                const SizedBox(width: 4),
+                const Icon(Icons.chevron_right, color: AtithyaColors.ashWhite, size: 14),
+              ]),
+            ).animate()
+             .fadeIn(duration: 500.ms, delay: Duration(milliseconds: 60 * i))
+             .slideX(begin: 0.05, end: 0, duration: 400.ms, delay: Duration(milliseconds: 60 * i)),
+          );
+        }),
+      ],
+    );
+  }
+
+  Widget _statCard(String label, String value, IconData icon,
+      {bool danger = false, bool refund = false}) {
+    final Color accent = danger
+        ? AtithyaColors.errorRed
+        : refund
+            ? const Color(0xFF4DB6AC)   // teal for refunds
+            : AtithyaColors.imperialGold;
+    final Color valColor = danger
+        ? AtithyaColors.errorRed
+        : refund
+            ? const Color(0xFF80CBC4)
+            : AtithyaColors.shimmerGold;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111318),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: accent.withValues(alpha: 0.18)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Icon(icon, size: 16, color: accent),
+          const SizedBox(height: 8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value, style: AtithyaTypography.displaySmall.copyWith(
+                fontSize: 18, color: valColor)),
+          ),
+          const SizedBox(height: 2),
+          Text(label, style: AtithyaTypography.labelMicro.copyWith(
+              color: AtithyaColors.ashWhite.withValues(alpha: 0.4),
+              fontSize: 7, letterSpacing: 1.5),
+            overflow: TextOverflow.ellipsis, maxLines: 2),
+        ]),
+      ),
+    );
   }
 }
 

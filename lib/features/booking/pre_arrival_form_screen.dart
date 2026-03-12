@@ -1,6 +1,9 @@
 // pre_arrival_form_screen.dart — Pre-Arrival Check-In Form
 // आतिथ्य · Luxury Hospitality · Author: Jeevan Naidu
 
+// ignore: avoid_web_libraries_in_flutter
+// ignore: deprecated_member_use
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -20,17 +23,19 @@ class _PreArrivalFormScreenState extends State<PreArrivalFormScreen> {
   final _formKey = GlobalKey<FormState>();
   bool _submitting = false;
 
-  // Controllers
-  final _etaCtrl = TextEditingController();
-  final _flightCtrl = TextEditingController();
-  final _vehicleCtrl = TextEditingController();
-  final _dietaryCtrl = TextEditingController();
-  final _celebrationCtrl = TextEditingController();
+  // Arrival / preference controllers
+  final _etaCtrl        = TextEditingController();
+  final _flightCtrl     = TextEditingController();
+  final _vehicleCtrl    = TextEditingController();
+  final _dietaryCtrl    = TextEditingController();
+  final _celebrationCtrl= TextEditingController();
   final _additionalCtrl = TextEditingController();
 
-  // Guest names / IDs (dynamic rows)
-  final List<TextEditingController> _guestNames = [TextEditingController()];
-  final List<TextEditingController> _guestIds = [TextEditingController()];
+  // Per-guest rows — count is fixed to booking.guests
+  final List<TextEditingController> _guestNames = [];
+  final List<TextEditingController> _guestIds   = [];
+  final List<String?> _guestDocNames = [];  // uploaded file name
+  final List<String?> _guestDocData  = [];  // base64 data-URL for preview
 
   Map<String, dynamic> get _b => widget.booking;
   Map<String, dynamic>? _pre;
@@ -38,28 +43,33 @@ class _PreArrivalFormScreenState extends State<PreArrivalFormScreen> {
   @override
   void initState() {
     super.initState();
+    final guestCount = ((_b['guests'] as num?) ?? 1).toInt().clamp(1, 20);
+
+    // Create exactly guestCount rows
+    for (int i = 0; i < guestCount; i++) {
+      _guestNames.add(TextEditingController());
+      _guestIds.add(TextEditingController());
+      _guestDocNames.add(null);
+      _guestDocData.add(null);
+    }
+
     // Pre-fill from existing data if already submitted
     final pre = _b['preArrivalForm'] as Map<String, dynamic>?;
     if (pre != null) {
       _pre = pre;
-      _etaCtrl.text = pre['estimatedETA'] ?? '';
-      _flightCtrl.text = pre['flightOrTrain'] ?? '';
-      _vehicleCtrl.text = pre['vehicleNumber'] ?? '';
-      _dietaryCtrl.text = pre['dietaryNotes'] ?? '';
-      _celebrationCtrl.text = pre['celebrationNote'] ?? '';
-      _additionalCtrl.text = pre['additionalRequests'] ?? '';
+      _etaCtrl.text         = pre['estimatedETA']      ?? '';
+      _flightCtrl.text      = pre['flightOrTrain']     ?? '';
+      _vehicleCtrl.text     = pre['vehicleNumber']     ?? '';
+      _dietaryCtrl.text     = pre['dietaryNotes']      ?? '';
+      _celebrationCtrl.text = pre['celebrationNote']   ?? '';
+      _additionalCtrl.text  = pre['additionalRequests'] ?? '';
 
       final names = (pre['guestNames'] as List?)?.map((e) => e.toString()).toList() ?? [];
-      final ids = (pre['idNumbers'] as List?)?.map((e) => e.toString()).toList() ?? [];
-      if (names.isNotEmpty) {
-        _guestNames.clear();
-        for (final n in names) _guestNames.add(TextEditingController(text: n));
+      final ids   = (pre['idNumbers']  as List?)?.map((e) => e.toString()).toList() ?? [];
+      for (int i = 0; i < _guestNames.length; i++) {
+        if (i < names.length) _guestNames[i].text = names[i];
+        if (i < ids.length) _guestIds[i].text = ids[i];
       }
-      if (ids.isNotEmpty) {
-        _guestIds.clear();
-        for (final id in ids) _guestIds.add(TextEditingController(text: id));
-      }
-      while (_guestIds.length < _guestNames.length) _guestIds.add(TextEditingController());
     }
   }
 
@@ -67,10 +77,34 @@ class _PreArrivalFormScreenState extends State<PreArrivalFormScreen> {
   void dispose() {
     _etaCtrl.dispose(); _flightCtrl.dispose(); _vehicleCtrl.dispose();
     _dietaryCtrl.dispose(); _celebrationCtrl.dispose(); _additionalCtrl.dispose();
-    for (final c in _guestNames) c.dispose();
-    for (final c in _guestIds) c.dispose();
+    for (final c in _guestNames) { c.dispose(); }
+    for (final c in _guestIds)   { c.dispose(); }
     super.dispose();
   }
+
+  // ── Document picker (web) ─────────────────────────────────────────────────
+
+  void _pickDoc(int index) {
+    final input = html.FileUploadInputElement()
+      ..accept = 'image/*,.pdf'
+      ..click();
+    input.onChange.listen((_) {
+      final file = input.files?.first;
+      if (file == null) return;
+      final reader = html.FileReader();
+      reader.readAsDataUrl(file);
+      reader.onLoad.listen((_) {
+        if (mounted) {
+          setState(() {
+            _guestDocNames[index] = file.name;
+            _guestDocData[index]  = reader.result as String?;
+          });
+        }
+      });
+    });
+  }
+
+  // ── Submit ────────────────────────────────────────────────────────────────
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
@@ -78,13 +112,13 @@ class _PreArrivalFormScreenState extends State<PreArrivalFormScreen> {
     setState(() => _submitting = true);
     try {
       await ApiClient().put('/api/bookings/${_b['_id']}/pre-arrival', {
-        'guestNames': _guestNames.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList(),
-        'idNumbers': _guestIds.map((c) => c.text.trim()).where((s) => s.isNotEmpty).toList(),
-        'estimatedETA': _etaCtrl.text.trim(),
-        'flightOrTrain': _flightCtrl.text.trim(),
-        'vehicleNumber': _vehicleCtrl.text.trim(),
-        'dietaryNotes': _dietaryCtrl.text.trim(),
-        'celebrationNote': _celebrationCtrl.text.trim(),
+        'guestNames':         _guestNames.map((c) => c.text.trim()).toList(),
+        'idNumbers':          _guestIds.map((c) => c.text.trim()).toList(),
+        'estimatedETA':       _etaCtrl.text.trim(),
+        'flightOrTrain':      _flightCtrl.text.trim(),
+        'vehicleNumber':      _vehicleCtrl.text.trim(),
+        'dietaryNotes':       _dietaryCtrl.text.trim(),
+        'celebrationNote':    _celebrationCtrl.text.trim(),
         'additionalRequests': _additionalCtrl.text.trim(),
       });
       if (mounted) Navigator.pop(context, true);
@@ -100,10 +134,13 @@ class _PreArrivalFormScreenState extends State<PreArrivalFormScreen> {
     }
   }
 
+  // ── Build ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
-    final estate = (_b['estate'] as Map<String, dynamic>?) ?? {};
+    final estate      = (_b['estate'] as Map<String, dynamic>?) ?? {};
     final isSubmitted = _pre?['submitted'] == true;
+    final guestCount  = _guestNames.length;
 
     return Scaffold(
       backgroundColor: AtithyaColors.obsidian,
@@ -138,6 +175,8 @@ class _PreArrivalFormScreenState extends State<PreArrivalFormScreen> {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
               sliver: SliverList(delegate: SliverChildListDelegate([
+
+                // ── Already submitted banner ────────────────────────────────
                 if (isSubmitted) ...[
                   Container(
                     margin: const EdgeInsets.only(bottom: 20),
@@ -156,64 +195,40 @@ class _PreArrivalFormScreenState extends State<PreArrivalFormScreen> {
                   ),
                 ],
 
+                // ── Guest Information ───────────────────────────────────────
                 _sectionLabel('GUEST INFORMATION'),
-                const SizedBox(height: 12),
-                ...List.generate(_guestNames.length, (i) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(children: [
-                    Expanded(flex: 5, child: _field(
-                      controller: _guestNames[i],
-                      label: 'Guest ${i + 1} Name',
-                      required: i == 0,
-                    )),
-                    const SizedBox(width: 10),
-                    Expanded(flex: 4, child: _field(
-                      controller: _guestIds[i],
-                      label: 'ID / Passport No.',
-                    )),
-                    if (i > 0) ...[
-                      const SizedBox(width: 6),
-                      GestureDetector(
-                        onTap: () => setState(() {
-                          _guestNames[i].dispose(); _guestNames.removeAt(i);
-                          _guestIds[i].dispose(); _guestIds.removeAt(i);
-                        }),
-                        child: Icon(Icons.remove_circle_outline,
-                          color: AtithyaColors.errorRed.withValues(alpha: 0.7), size: 20),
-                      ),
-                    ],
-                  ]),
-                )),
-                if (_guestNames.length < 10)
-                  GestureDetector(
-                    onTap: () => setState(() {
-                      _guestNames.add(TextEditingController());
-                      _guestIds.add(TextEditingController());
-                    }),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      child: Row(children: [
-                        const Icon(Icons.add_circle_outline, color: AtithyaColors.imperialGold, size: 16),
-                        const SizedBox(width: 6),
-                        Text('ADD GUEST', style: AtithyaTypography.labelMicro.copyWith(
-                          color: AtithyaColors.imperialGold, letterSpacing: 2, fontSize: 9)),
-                      ]),
-                    ),
-                  ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 4),
+                Text('$guestCount guest${guestCount != 1 ? 's' : ''} · fill in all names & IDs',
+                  style: AtithyaTypography.caption.copyWith(
+                    color: AtithyaColors.ashWhite.withValues(alpha: 0.4), fontSize: 11)),
+                const SizedBox(height: 16),
 
+                ...List.generate(guestCount, (i) => _GuestRow(
+                  index: i,
+                  nameCtrl:    _guestNames[i],
+                  idCtrl:      _guestIds[i],
+                  docName:     _guestDocNames[i],
+                  docData:     _guestDocData[i],
+                  isRequired:  i == 0,
+                  onPickDoc:   () => _pickDoc(i),
+                ).animate().fadeIn(duration: 500.ms, delay: Duration(milliseconds: 80 * i))),
+
+                const SizedBox(height: 24),
+
+                // ── Arrival Details ─────────────────────────────────────────
                 _sectionLabel('ARRIVAL DETAILS'),
                 const SizedBox(height: 12),
-                _field(controller: _etaCtrl, label: 'Estimated Arrival Time (e.g., 3:30 PM)'),
+                _field(controller: _etaCtrl,    label: 'Estimated Arrival Time (e.g., 3:30 PM)'),
                 const SizedBox(height: 12),
                 _field(controller: _flightCtrl, label: 'Flight / Train Number (if applicable)'),
                 const SizedBox(height: 12),
                 _field(controller: _vehicleCtrl, label: 'Vehicle Number (for valet / parking)'),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
+                // ── Preferences & Notes ─────────────────────────────────────
                 _sectionLabel('PREFERENCES & NOTES'),
                 const SizedBox(height: 12),
-                _field(controller: _dietaryCtrl, label: 'Dietary Requirements / Allergies', maxLines: 3),
+                _field(controller: _dietaryCtrl,    label: 'Dietary Requirements / Allergies', maxLines: 3),
                 const SizedBox(height: 12),
                 _field(controller: _celebrationCtrl, label: 'Celebration / Special Occasion (optional)', maxLines: 2),
                 const SizedBox(height: 12),
@@ -236,8 +251,8 @@ class _PreArrivalFormScreenState extends State<PreArrivalFormScreen> {
             height: 54,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(6),
-              gradient: LinearGradient(
-                colors: [AtithyaColors.imperialGold, AtithyaColors.shimmerGold],
+              gradient: const LinearGradient(
+                colors: [AtithyaColors.burnishedGold, AtithyaColors.shimmerGold],
                 begin: Alignment.centerLeft, end: Alignment.centerRight,
               ),
             ),
@@ -288,3 +303,189 @@ class _PreArrivalFormScreenState extends State<PreArrivalFormScreen> {
       ),
     );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _GuestRow — one card per guest: name + ID + document upload
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GuestRow extends StatelessWidget {
+  final int index;
+  final TextEditingController nameCtrl;
+  final TextEditingController idCtrl;
+  final String? docName;
+  final String? docData;
+  final bool isRequired;
+  final VoidCallback onPickDoc;
+
+  const _GuestRow({
+    required this.index,
+    required this.nameCtrl,
+    required this.idCtrl,
+    required this.isRequired,
+    required this.onPickDoc,
+    this.docName,
+    this.docData,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final hasDoc  = docData != null;
+    final isImage = hasDoc && !docData!.contains('application/pdf');
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF111318),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasDoc
+            ? AtithyaColors.imperialGold.withValues(alpha: 0.35)
+            : AtithyaColors.imperialGold.withValues(alpha: 0.14)),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // ── Guest label ─────────────────────────────────────────────────────
+        Row(children: [
+          Container(
+            width: 26, height: 26,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: const LinearGradient(
+                colors: [AtithyaColors.burnishedGold, AtithyaColors.shimmerGold]),
+            ),
+            child: Center(child: Text('${index + 1}',
+              style: AtithyaTypography.labelMicro.copyWith(
+                color: Colors.black, fontSize: 11, fontWeight: FontWeight.w700))),
+          ),
+          const SizedBox(width: 10),
+          Text('GUEST ${index + 1}', style: AtithyaTypography.labelMicro.copyWith(
+            color: AtithyaColors.imperialGold, letterSpacing: 3, fontSize: 9)),
+          if (isRequired) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AtithyaColors.imperialGold.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text('PRIMARY', style: AtithyaTypography.labelMicro.copyWith(
+                color: AtithyaColors.imperialGold, fontSize: 7, letterSpacing: 1.5)),
+            ),
+          ],
+        ]),
+        const SizedBox(height: 14),
+
+        // ── Name field ──────────────────────────────────────────────────────
+        TextFormField(
+          controller: nameCtrl,
+          style: AtithyaTypography.bodyElegant.copyWith(fontSize: 14),
+          validator: isRequired
+            ? (v) => (v == null || v.trim().isEmpty) ? 'Guest name is required' : null
+            : null,
+          decoration: _inputDeco('Full Name${isRequired ? '' : ' (optional)'}'),
+        ),
+        const SizedBox(height: 10),
+
+        // ── ID / Passport field ─────────────────────────────────────────────
+        TextFormField(
+          controller: idCtrl,
+          style: AtithyaTypography.bodyElegant.copyWith(fontSize: 14),
+          decoration: _inputDeco('Passport / Aadhaar No.'),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Document upload ─────────────────────────────────────────────────
+        Row(children: [
+          // Upload button
+          GestureDetector(
+            onTap: onPickDoc,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: hasDoc
+                  ? AtithyaColors.imperialGold.withValues(alpha: 0.12)
+                  : const Color(0xFF0D0F14),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: hasDoc
+                    ? AtithyaColors.imperialGold.withValues(alpha: 0.5)
+                    : AtithyaColors.imperialGold.withValues(alpha: 0.2)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(
+                  hasDoc ? Icons.check_circle_outline : Icons.camera_alt_outlined,
+                  color: AtithyaColors.imperialGold, size: 15),
+                const SizedBox(width: 8),
+                Text(
+                  hasDoc ? 'CHANGE DOCUMENT' : 'UPLOAD / SCAN ID',
+                  style: AtithyaTypography.labelMicro.copyWith(
+                    color: AtithyaColors.imperialGold, letterSpacing: 1.5, fontSize: 8)),
+              ]),
+            ),
+          ),
+          const SizedBox(width: 10),
+          if (hasDoc) Expanded(child: Text(
+            docName ?? 'Document attached',
+            style: AtithyaTypography.caption.copyWith(
+              color: AtithyaColors.ashWhite.withValues(alpha: 0.5), fontSize: 10),
+            overflow: TextOverflow.ellipsis,
+          )),
+        ]),
+
+        // ── Image preview ───────────────────────────────────────────────────
+        if (isImage && docData != null) ...[
+          const SizedBox(height: 12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: Image.network(
+              docData!,
+              height: 90,
+              fit: BoxFit.cover,
+              width: double.infinity,
+            ),
+          ),
+        ] else if (hasDoc && docData != null && docData!.contains('application/pdf')) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: AtithyaColors.imperialGold.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.2)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.picture_as_pdf_outlined, color: AtithyaColors.imperialGold, size: 16),
+              const SizedBox(width: 8),
+              Expanded(child: Text(docName ?? 'PDF document',
+                style: AtithyaTypography.caption.copyWith(
+                  color: AtithyaColors.pearl, fontSize: 11),
+                overflow: TextOverflow.ellipsis)),
+            ]),
+          ),
+        ],
+      ]),
+    );
+  }
+
+  InputDecoration _inputDeco(String label) => InputDecoration(
+    labelText: label,
+    labelStyle: AtithyaTypography.caption.copyWith(
+      color: AtithyaColors.ashWhite.withValues(alpha: 0.4), fontSize: 11),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: AtithyaColors.imperialGold.withValues(alpha: 0.18))),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: AtithyaColors.imperialGold.withValues(alpha: 0.5))),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: AtithyaColors.errorRed.withValues(alpha: 0.5))),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: AtithyaColors.errorRed)),
+    filled: true,
+    fillColor: const Color(0xFF0D0F14),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+  );
+}
+

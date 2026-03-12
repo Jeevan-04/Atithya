@@ -7,6 +7,7 @@ import '../../core/colors.dart';
 import '../../core/typography.dart';
 import '../../core/widgets.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/booking_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../payment/payment_screen.dart';
 import '../auth/auth_foyer_screen.dart';
@@ -73,11 +74,84 @@ class _BookingFlowScreenState extends ConsumerState<BookingFlowScreen>
   }
 
   void _nextStep() {
+    if (_currentStep == 0) {
+      _checkOverlapAndProceed();
+    } else {
+      _advance();
+    }
+  }
+
+  void _advance() {
     if (_currentStep < 3) {
       setState(() => _currentStep++);
       _pageCtrl.animateToPage(_currentStep,
           duration: const Duration(milliseconds: 500), curve: Curves.easeOutQuart);
     }
+  }
+
+  /// Checks for active booking overlaps before advancing from the date step.
+  /// An exact back-to-back (new checkIn == existing checkOut, or vice-versa) is NOT an overlap.
+  Future<void> _checkOverlapAndProceed() async {
+    final existingBookings = ref.read(bookingProvider).bookings;
+    final newCi = DateTime(_checkIn.year, _checkIn.month, _checkIn.day);
+    final newCo = DateTime(_checkOut.year, _checkOut.month, _checkOut.day);
+
+    final overlapping = existingBookings.where((b) {
+      final bMap = b as Map;
+      if (bMap['status'] == 'Cancelled') return false;
+      final ci = DateTime.tryParse(bMap['checkInDate']?.toString() ?? '');
+      final co = DateTime.tryParse(bMap['checkOutDate']?.toString() ?? '');
+      if (ci == null || co == null) return false;
+      final ciDay = DateTime(ci.year, ci.month, ci.day);
+      final coDay = DateTime(co.year, co.month, co.day);
+      // True overlap only — back-to-back boundaries are allowed
+      return newCi.isBefore(coDay) && newCo.isAfter(ciDay);
+    }).toList();
+
+    if (overlapping.isNotEmpty) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        barrierColor: Colors.black.withValues(alpha: 0.7),
+        builder: (_) => AlertDialog(
+          backgroundColor: const Color(0xFF15151E),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide(color: AtithyaColors.imperialGold.withValues(alpha: 0.25)),
+          ),
+          title: Row(children: [
+            const Icon(Icons.warning_amber_rounded,
+                color: AtithyaColors.imperialGold, size: 22),
+            const SizedBox(width: 10),
+            Text('Dates Already Booked',
+                style: AtithyaTypography.displaySmall.copyWith(fontSize: 16)),
+          ]),
+          content: Text(
+            'You already have ${overlapping.length == 1
+                ? 'an active booking'
+                : '${overlapping.length} active bookings'} '
+            'that overlap these dates. Are you sure you want to add another?',
+            style: AtithyaTypography.bodyElegant
+                .copyWith(color: AtithyaColors.ashWhite, fontSize: 13, height: 1.5),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text('Go Back',
+                  style: AtithyaTypography.bodyElegant
+                      .copyWith(color: AtithyaColors.ashWhite.withValues(alpha: 0.6))),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text('Yes, Continue',
+                  style: AtithyaTypography.bodyElegant
+                      .copyWith(color: AtithyaColors.imperialGold)),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+    _advance();
   }
 
   void _prevStep() {
