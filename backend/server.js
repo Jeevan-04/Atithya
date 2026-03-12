@@ -1088,60 +1088,75 @@ app.post('/api/payment', auth, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 app.get('/api/admin/system', auth, adminOnly, async (req, res) => {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    try {
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
 
-    const [users, estates, bookings, orders] = await Promise.all([
-        User.countDocuments(),
-        Estate.countDocuments(),
-        Booking.countDocuments(),
-        FoodOrder.countDocuments(),
-    ]);
-    const revenue = await Booking.aggregate([
-        { $match: { status: { $ne: 'Cancelled' } } },
-        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-    const cancelledRevenue = await Booking.aggregate([
-        { $match: { status: 'Cancelled' } },
-        { $group: { _id: null, total: { $sum: '$totalAmount' } } }
-    ]);
-    const foodRevenue = await FoodOrder.aggregate([{ $group: { _id: null, total: { $sum: '$totalAmount' } } }]);
-    const recentBookings = await Booking.find().populate('user estate').sort({ createdAt: -1 }).limit(5);
-    const staffList = await User.find({ role: { $in: ['manager', 'gate_staff', 'desk_staff', 'phantom'] } }).populate('estateId', 'title');
-    const staffSafe = staffList.map(s => {
-        const obj = s.toObject();
-        return { ...obj, role: obj.role === 'phantom' ? 'desk_staff' : obj.role, _isPhantom: obj.role === 'phantom' };
-    });
+        const [users, estates, bookings, orders] = await Promise.all([
+            User.countDocuments(),
+            Estate.countDocuments(),
+            Booking.countDocuments(),
+            FoodOrder.countDocuments(),
+        ]);
 
-    // Top estates this month by booking count
-    const topEstatesMonth = await Booking.aggregate([
-        { $match: { createdAt: { $gte: startOfMonth }, status: { $ne: 'Cancelled' } } },
-        { $group: { _id: '$estate', count: { $sum: 1 }, revenue: { $sum: '$totalAmount' } } },
-        { $sort: { count: -1 } },
-        { $limit: 5 },
-        { $lookup: { from: 'estates', localField: '_id', foreignField: '_id', as: 'estateInfo' } },
-        { $unwind: { path: '$estateInfo', preserveNullAndEmpty: true } },
-        { $project: { count: 1, revenue: 1, title: '$estateInfo.title', city: '$estateInfo.city', heroImage: '$estateInfo.heroImage' } }
-    ]);
+        const [revenue, cancelledRevenue, foodRevenue] = await Promise.all([
+            Booking.aggregate([
+                { $match: { status: { $ne: 'Cancelled' } } },
+                { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+            ]),
+            Booking.aggregate([
+                { $match: { status: 'Cancelled' } },
+                { $group: { _id: null, total: { $sum: '$totalAmount' } } }
+            ]),
+            FoodOrder.aggregate([{ $group: { _id: null, total: { $sum: '$totalAmount' } } }]),
+        ]);
 
-    // Monthly revenue for the last 6 months
-    const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-    const monthlyRevenue = await Booking.aggregate([
-        { $match: { createdAt: { $gte: sixMonthsAgo }, status: { $ne: 'Cancelled' } } },
-        { $group: { _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } }, total: { $sum: '$totalAmount' }, count: { $sum: 1 } } },
-        { $sort: { '_id.year': 1, '_id.month': 1 } }
-    ]);
+        // populate each path separately — space-separated string is broken in Mongoose 9
+        const recentBookings = await Booking.find()
+            .populate({ path: 'user', select: 'name phoneNumber memberTier' })
+            .populate({ path: 'estate', select: 'title city heroImage' })
+            .sort({ createdAt: -1 })
+            .limit(5);
 
-    res.json({
-        users, estates, bookings, orders,
-        revenue: revenue[0]?.total || 0,
-        cancelledRevenue: cancelledRevenue[0]?.total || 0,
-        refundedAmount: (cancelledRevenue[0]?.total || 0) * 0.8,
-        foodRevenue: foodRevenue[0]?.total || 0,
-        recentBookings, staffList: staffSafe,
-        topEstatesMonth,
-        monthlyRevenue,
-    });
+        const staffList = await User.find({ role: { $in: ['manager', 'gate_staff', 'desk_staff', 'phantom'] } })
+            .populate({ path: 'estateId', select: 'title' });
+        const staffSafe = staffList.map(s => {
+            const obj = s.toObject();
+            return { ...obj, role: obj.role === 'phantom' ? 'desk_staff' : obj.role, _isPhantom: obj.role === 'phantom' };
+        });
+
+        const [topEstatesMonth, monthlyRevenue] = await Promise.all([
+            Booking.aggregate([
+                { $match: { createdAt: { $gte: startOfMonth }, status: { $ne: 'Cancelled' } } },
+                { $group: { _id: '$estate', count: { $sum: 1 }, revenue: { $sum: '$totalAmount' } } },
+                { $sort: { count: -1 } },
+                { $limit: 5 },
+                { $lookup: { from: 'estates', localField: '_id', foreignField: '_id', as: 'estateInfo' } },
+                { $unwind: { path: '$estateInfo', preserveNullAndEmpty: true } },
+                { $project: { count: 1, revenue: 1, title: '$estateInfo.title', city: '$estateInfo.city', heroImage: '$estateInfo.heroImage' } }
+            ]),
+            Booking.aggregate([
+                { $match: { createdAt: { $gte: sixMonthsAgo }, status: { $ne: 'Cancelled' } } },
+                { $group: { _id: { year: { $year: '$createdAt' }, month: { $month: '$createdAt' } }, total: { $sum: '$totalAmount' }, count: { $sum: 1 } } },
+                { $sort: { '_id.year': 1, '_id.month': 1 } }
+            ]),
+        ]);
+
+        res.json({
+            users, estates, bookings, orders,
+            revenue: revenue[0]?.total || 0,
+            cancelledRevenue: cancelledRevenue[0]?.total || 0,
+            refundedAmount: (cancelledRevenue[0]?.total || 0) * 0.8,
+            foodRevenue: foodRevenue[0]?.total || 0,
+            recentBookings, staffList: staffSafe,
+            topEstatesMonth,
+            monthlyRevenue,
+        });
+    } catch (e) {
+        console.error('Admin system error:', e);
+        res.status(500).json({ error: e.message || 'Failed to load dashboard stats' });
+    }
 });
 
 // GET /api/admin/bookings — paginated full booking list for admin dashboard
