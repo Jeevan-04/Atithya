@@ -274,13 +274,21 @@ class _ResultSheet extends StatefulWidget {
 class _ResultSheetState extends State<_ResultSheet> {
   bool _showDriveIn = false;
 
-  Color get _bgColor => widget.result?.success == true
-      ? AtithyaColors.success.withOpacity(0.08)
-      : AtithyaColors.errorRed.withOpacity(0.08);
+  bool get _isAlreadyIn => widget.result?.alreadyCheckedIn == true;
 
-  Color get _accentColor => widget.result?.success == true
-      ? AtithyaColors.success
-      : const Color(0xFFE53935);
+  Color get _bgColor {
+    if (_isAlreadyIn) return const Color(0xFFFF9800).withOpacity(0.08);
+    return widget.result?.success == true
+        ? AtithyaColors.success.withOpacity(0.08)
+        : AtithyaColors.errorRed.withOpacity(0.08);
+  }
+
+  Color get _accentColor {
+    if (_isAlreadyIn) return const Color(0xFFFF9800);
+    return widget.result?.success == true
+        ? AtithyaColors.success
+        : const Color(0xFFE53935);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -310,14 +318,14 @@ class _ResultSheetState extends State<_ResultSheet> {
             border: Border.all(color: _accentColor, width: 2),
           ),
           child: Icon(
-            ok ? Icons.check_rounded : Icons.close_rounded,
+            _isAlreadyIn ? Icons.replay_rounded : ok ? Icons.check_rounded : Icons.close_rounded,
             color: _accentColor, size: 36,
           ),
         ).animate().scale(duration: 300.ms),
 
         const SizedBox(height: 16),
         Text(
-          ok ? 'ACCESS GRANTED' : 'ACCESS DENIED',
+          _isAlreadyIn ? 'ALREADY CHECKED IN' : ok ? 'ACCESS GRANTED' : 'ACCESS DENIED',
           style: AtithyaTypography.heroTitle.copyWith(
             color: _accentColor, fontSize: 18, letterSpacing: 2,
           ),

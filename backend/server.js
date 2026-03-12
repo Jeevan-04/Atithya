@@ -902,6 +902,9 @@ app.post('/api/access/verify-qr', auth, async (req, res) => {
             error: 'Booking cancelled', allowed: false,
         });
 
+        // Detect re-scan of already checked-in booking
+        const alreadyCheckedIn = booking.status === 'Checked In';
+
         // Log access
         booking.accessLog.push({
             action: location || 'Gate Scan',
@@ -910,7 +913,7 @@ app.post('/api/access/verify-qr', auth, async (req, res) => {
             location: location || 'main_gate',
         });
 
-        // Auto check-in on gate scan
+        // Auto check-in on gate scan (only if not already checked in)
         if (booking.status === 'Confirmed' && location === 'main_gate') {
             booking.status = 'Checked In';
         }
@@ -918,6 +921,7 @@ app.post('/api/access/verify-qr', auth, async (req, res) => {
 
         res.json({
             allowed: true,
+            alreadyCheckedIn,
             booking: {
                 _id: booking._id,
                 status: booking.status,

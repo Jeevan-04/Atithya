@@ -59,6 +59,7 @@ class _StaffQrScannerScreenState extends State<StaffQrScannerScreen>
       setState(() {
         _result = _ScanResult(
           allowed: data['allowed'] == true,
+          alreadyCheckedIn: data['alreadyCheckedIn'] == true,
           guestName: data['guest']?['name'] ?? data['guest']?['phoneNumber'] ?? '—',
           estateName: data['estate']?['title'] ?? '—',
           roomNumber: data['booking']?['roomNumber'] ?? '—',
@@ -267,7 +268,12 @@ class _StaffQrScannerScreenState extends State<StaffQrScannerScreen>
 
   Widget _buildResultPanel(_ScanResult r) {
     final isAllowed = r.allowed;
-    final accentColor = isAllowed ? const Color(0xFF4CAF50) : AtithyaColors.errorRed;
+    final isAlready = r.alreadyCheckedIn;
+    final Color accentColor = isAlready
+        ? const Color(0xFFFFC107)   // amber — already checked in
+        : isAllowed
+            ? const Color(0xFF4CAF50)  // green — access granted
+            : AtithyaColors.errorRed;  // red — access denied
 
     return Container(
       decoration: BoxDecoration(
@@ -293,23 +299,27 @@ class _StaffQrScannerScreenState extends State<StaffQrScannerScreen>
               border: Border.all(color: accentColor.withValues(alpha: 0.5), width: 2),
             ),
             child: Icon(
-              isAllowed ? Icons.check_rounded : Icons.close_rounded,
+              isAlready ? Icons.replay_rounded : isAllowed ? Icons.check_rounded : Icons.close_rounded,
               color: accentColor,
               size: 36,
             ),
           ).animate().scale(begin: const Offset(0.6, 0.6), end: const Offset(1, 1), duration: 400.ms, curve: Curves.elasticOut),
           const SizedBox(height: 16),
           Text(
-            isAllowed ? 'ACCESS GRANTED' : 'ACCESS DENIED',
+            isAlready ? 'ALREADY CHECKED IN' : isAllowed ? 'ACCESS GRANTED' : 'ACCESS DENIED',
             style: AtithyaTypography.labelMicro.copyWith(
                 color: accentColor, letterSpacing: 4, fontSize: 13),
           ).animate().fadeIn(duration: 400.ms, delay: 100.ms),
           const SizedBox(height: 4),
-          if (r.message != null && !isAllowed)
+          if (isAlready)
+            Text('Guest is already inside the property',
+                style: AtithyaTypography.caption.copyWith(
+                    color: const Color(0xFFFFC107).withValues(alpha: 0.7))),
+          if (r.message != null && !isAllowed && !isAlready)
             Text(r.message!, style: AtithyaTypography.caption.copyWith(
                 color: AtithyaColors.errorRed.withValues(alpha: 0.8))),
           const SizedBox(height: 20),
-          if (isAllowed) ...[
+          if (isAllowed || isAlready) ...[  // show guest card for both ACCESS GRANTED and ALREADY CHECKED IN
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -444,6 +454,7 @@ class _StaffQrScannerScreenState extends State<StaffQrScannerScreen>
 
 class _ScanResult {
   final bool allowed;
+  final bool alreadyCheckedIn;
   final String? guestName;
   final String? estateName;
   final String? roomNumber;
@@ -456,6 +467,7 @@ class _ScanResult {
 
   const _ScanResult({
     required this.allowed,
+    this.alreadyCheckedIn = false,
     this.guestName,
     this.estateName,
     this.roomNumber,
