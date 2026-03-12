@@ -74,8 +74,13 @@ async function _patchBadEstateImages() {
         const isBad = (u) => !u ||
             u.includes('google.com/url') ||
             u.includes('tripadvisor') ||
+            u.includes('cntraveler.com') ||
+            u.includes('boundlessexplorism.com') ||
             (!u.startsWith('https://images.unsplash.com') &&
              !u.startsWith('https://plus.unsplash.com') &&
+             !u.startsWith('https://lh3.googleusercontent.com') &&
+             !u.startsWith('https://lh4.googleusercontent.com') &&
+             !u.startsWith('https://lh5.googleusercontent.com') &&
              !u.startsWith('data:'));
         const estates = await Estate.find({}).select('title heroImage images').lean();
         let patched = 0;
