@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/network/api_client.dart';
+import 'auth_provider.dart';
 
 class BookingState {
   final bool isLoading;
@@ -32,7 +33,13 @@ class BookingState {
 class BookingNotifier extends Notifier<BookingState> {
   @override
   BookingState build() {
-    return BookingState();
+    // Watch auth — auto-refresh bookings when user logs in, clear when they log out
+    final isAuthenticated = ref.watch(
+      authProvider.select((s) => s.isAuthenticated),
+    );
+    if (!isAuthenticated) return BookingState();
+    Future.microtask(() => fetchMyBookings());
+    return BookingState(isLoading: true);
   }
 
   Future<void> fetchMyBookings() async {

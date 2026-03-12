@@ -21,13 +21,84 @@ const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
 const AI_MODEL   = process.env.AI_MODEL   || 'smollm2:1.7b';
 
 const app = express();
-app.use(cors());
+
+// ── CORS — allow localhost dev + GitHub Pages production ─────────────────────
+const allowedOrigins = [
+    'http://localhost:8080',
+    'http://localhost:3000',
+    'http://127.0.0.1:8080',
+    'https://jeevan-04.github.io',
+];
+app.use(cors({
+    origin: (origin, cb) => {
+        // Allow requests with no origin (mobile apps, curl, Postman)
+        if (!origin) return cb(null, true);
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+        // Allow any localhost port during dev
+        if (/^http:\/\/localhost:\d+$/.test(origin) ||
+            /^http:\/\/127\.0\.0\.1:\d+$/.test(origin)) return cb(null, true);
+        cb(null, true); // also allow unknown origins (public API) — remove if you want strict mode
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+app.options('*', cors()); // handle preflight for all routes
 app.use(express.json());
 
 // ── MongoDB Connection ────────────────────────────────────────────────────────
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('✅ MongoDB Atlas connected'))
+    .then(async () => {
+        console.log('✅ MongoDB Atlas connected');
+        await _patchBadEstateImages();
+    })
     .catch(err => console.error('❌ MongoDB error:', err));
+
+// One-time startup migration: replace non-CORS-friendly heroImage URLs with
+// reliable Unsplash CDN URLs so the Flutter web app can load them from any origin.
+async function _patchBadEstateImages() {
+    try {
+        const Estate = mongoose.models.Estate;
+        if (!Estate) return;
+        const safeUnsplash = [
+            'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=900',
+            'https://images.unsplash.com/photo-1524230572899-a752b3835840?w=900',
+            'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=900',
+            'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=900',
+            'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=900',
+            'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=900',
+            'https://images.unsplash.com/photo-1590381105924-c72589b9ef3f?w=900',
+            'https://images.unsplash.com/photo-1455543986359-f01defe57a73?w=900',
+            'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=900',
+            'https://images.unsplash.com/photo-1448375240586-882707db888b?w=900',
+        ];
+        const isBad = (u) => !u ||
+            u.includes('google.com/url') ||
+            u.includes('tripadvisor') ||
+            (!u.startsWith('https://images.unsplash.com') &&
+             !u.startsWith('https://plus.unsplash.com') &&
+             !u.startsWith('data:'));
+        const estates = await Estate.find({}).select('title heroImage images').lean();
+        let patched = 0;
+        for (const [i, estate] of estates.entries()) {
+            const updates = {};
+            if (isBad(estate.heroImage)) {
+                updates.heroImage = safeUnsplash[i % safeUnsplash.length];
+            }
+            const imgs = estate.images || [];
+            const cleaned = imgs.map((u, j) =>
+                isBad(u) ? safeUnsplash[(i + j + 1) % safeUnsplash.length] : u);
+            if (cleaned.some((u, j) => u !== imgs[j])) updates.images = cleaned;
+            if (Object.keys(updates).length) {
+                await Estate.updateOne({ _id: estate._id }, { $set: updates });
+                patched++;
+            }
+        }
+        if (patched > 0) console.log(`✅ Patched ${patched} estate(s) with bad image URLs`);
+    } catch (e) {
+        console.error('Image patch error:', e.message);
+    }
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // SCHEMAS
