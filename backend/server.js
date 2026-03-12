@@ -869,8 +869,17 @@ app.put('/api/bookings/:id/cancel', auth, async (req, res) => {
 // Verify QR token (gate, desk, lift scan)
 app.post('/api/access/verify-qr', auth, async (req, res) => {
     try {
-        const { qrToken, location } = req.body;
-        const booking = await Booking.findOne({ qrToken })
+        const { qrToken: rawQr, location } = req.body;
+
+        // The QR image encodes the full qrData JSON string.
+        // Extract the raw hex token from it if it's JSON, else use as-is.
+        let resolvedToken = rawQr;
+        try {
+            const parsed = JSON.parse(rawQr);
+            if (parsed?.token) resolvedToken = parsed.token;
+        } catch (_) { /* not JSON — use rawQr directly */ }
+
+        const booking = await Booking.findOne({ qrToken: resolvedToken })
             .populate('user', 'phoneNumber name loyaltyPoints memberTier')
             .populate('estate', 'title location city liftFloors wingCode wifiPwd');
 
