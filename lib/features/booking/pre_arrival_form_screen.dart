@@ -111,7 +111,7 @@ class _PreArrivalFormScreenState extends State<PreArrivalFormScreen> {
     HapticFeedback.mediumImpact();
     setState(() => _submitting = true);
     try {
-      await ApiClient().put('/api/bookings/${_b['_id']}/pre-arrival', {
+      await apiClient.put('/bookings/${_b['_id']}/pre-arrival', {
         'guestNames':         _guestNames.map((c) => c.text.trim()).toList(),
         'idNumbers':          _guestIds.map((c) => c.text.trim()).toList(),
         'estimatedETA':       _etaCtrl.text.trim(),

@@ -867,7 +867,7 @@ app.put('/api/bookings/:id/cancel', auth, async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 
 // Verify QR token (gate, desk, lift scan)
-app.post('/api/access/verify-qr', auth, staffOnly(['admin', 'manager', 'gate_staff', 'desk_staff']), async (req, res) => {
+app.post('/api/access/verify-qr', auth, async (req, res) => {
     try {
         const { qrToken, location } = req.body;
         const booking = await Booking.findOne({ qrToken })

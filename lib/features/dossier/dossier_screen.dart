@@ -969,34 +969,7 @@ class _DossierScreenState extends ConsumerState<DossierScreen>
                           color: AtithyaColors.parchment.withValues(alpha: 0.7), fontSize: 13, height: 1.6),
                       maxLines: 3, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(exp['price']!, style: AtithyaTypography.labelSmall.copyWith(fontSize: 13)),
-                      GestureDetector(
-                        onTap: () => showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          barrierColor: Colors.transparent,
-                          builder: (_) => const ConciergeModal(),
-                        ),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [AtithyaColors.imperialGold.withValues(alpha: 0.15), AtithyaColors.burnishedGold.withValues(alpha: 0.08)],
-                            ),
-                            border: Border.all(color: AtithyaColors.imperialGold.withValues(alpha: 0.5)),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text('ENQUIRE',
-                              style: AtithyaTypography.labelMicro.copyWith(
-                                  color: AtithyaColors.imperialGold, fontSize: 8, letterSpacing: 2)),
-                        ),
-                      ),
-                    ],
-                  ),
+                  Text(exp['price']!, style: AtithyaTypography.labelSmall.copyWith(fontSize: 13)),
                 ],
               ),
             ).animate(delay: (i * 60).ms).fadeIn(duration: 500.ms).slideY(begin: 0.05, end: 0);
