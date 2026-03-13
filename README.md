@@ -17,7 +17,7 @@ A full-stack luxury heritage-hotel booking platform. Curated Indian palaces, for
   </tr>
   <tr>
     <td>
-      <video src="" width="180" controls></video>
+      <video src="https://github.com/Jeevan-04/Atithya/blob/main/Admin_Side.mp4" width="180" controls></video>
     </td>
     <td>
       <video src="LINK_TO_VIDEO_2.mp4" width="180" controls></video>
