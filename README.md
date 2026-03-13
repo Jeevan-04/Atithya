@@ -5,9 +5,30 @@
 
 A full-stack luxury heritage-hotel booking platform. Curated Indian palaces, fort-stays and riverside haveli properties — bookable through a cinematic Flutter web application backed by a Node.js/MongoDB REST API.
 
-**Live App**: https://jeevan-04.github.io  
+**Live App**: https://jeevan-04.github.io/Atithya
 **API Server**: https://atithya-nzqy.onrender.com/api  
 **Author**: Jeevan Naidu — [@Jeevan-04](https://github.com/Jeevan-04)
+
+<table>
+  <tr>
+    <td align="center"><b>Admin</b></td>
+    <td align="center"><b>Member</b></td>
+    <td align="center"><b>Staff</b></td>
+  </tr>
+  <tr>
+    <td>
+      <video src="" width="180" controls></video>
+    </td>
+    <td>
+      <video src="LINK_TO_VIDEO_2.mp4" width="180" controls></video>
+    </td>
+    <td>
+      <video src="LINK_TO_VIDEO_3.mp4" width="180" controls></video>
+    </td>
+  </tr>
+</table>
+
+
 
 ---
 
