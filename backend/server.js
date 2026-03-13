@@ -1137,7 +1137,7 @@ app.get('/api/admin/system', auth, adminOnly, async (req, res) => {
                 { $sort: { count: -1 } },
                 { $limit: 5 },
                 { $lookup: { from: 'estates', localField: '_id', foreignField: '_id', as: 'estateInfo' } },
-                { $unwind: { path: '$estateInfo', preserveNullAndEmpty: true } },
+                { $unwind: { path: '$estateInfo', preserveNullAndEmptyArrays: true } },
                 { $project: { count: 1, revenue: 1, title: '$estateInfo.title', city: '$estateInfo.city', heroImage: '$estateInfo.heroImage' } }
             ]),
             Booking.aggregate([
