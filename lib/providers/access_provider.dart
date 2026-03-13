@@ -6,6 +6,7 @@ import '../core/network/api_client.dart';
 class QRScanResult {
   final bool success;
   final String message;
+  final bool alreadyCheckedIn;
   final String accessType; // 'gate' | 'desk' | 'lift' | 'room'
   final String? guestName;
   final String? roomNumber;
@@ -21,6 +22,7 @@ class QRScanResult {
   const QRScanResult({
     required this.success,
     required this.message,
+    this.alreadyCheckedIn = false,
     required this.accessType,
     this.guestName,
     this.roomNumber,
@@ -34,21 +36,32 @@ class QRScanResult {
     this.vehicleNumber,
   });
 
-  factory QRScanResult.fromJson(Map<String, dynamic> j) => QRScanResult(
-        success: j['success'] ?? false,
-        message: j['message'] ?? '',
-        accessType: j['accessType'] ?? 'gate',
-        guestName: j['guestName'],
-        roomNumber: j['roomNumber'],
-        floorNumber: j['floorNumber'],
-        estateName: j['estateName'],
-        bookingRef: j['bookingRef'],
-        checkIn: j['checkIn'],
-        checkOut: j['checkOut'],
-        memberTier: j['memberTier'],
-        addOns: List<String>.from(j['addOns'] ?? []),
-        vehicleNumber: j['vehicleNumber'],
-      );
+  factory QRScanResult.fromJson(Map<String, dynamic> j) {
+    final booking = j['booking'] is Map ? Map<String, dynamic>.from(j['booking']) : <String, dynamic>{};
+    final guest = j['guest'] is Map ? Map<String, dynamic>.from(j['guest']) : <String, dynamic>{};
+    final estate = j['estate'] is Map ? Map<String, dynamic>.from(j['estate']) : <String, dynamic>{};
+
+    return QRScanResult(
+      success: (j['success'] == true) || (j['allowed'] == true),
+      message: (j['message'] ?? j['error'] ?? '').toString(),
+      alreadyCheckedIn: j['alreadyCheckedIn'] == true,
+      accessType: (j['accessType'] ?? 'gate').toString(),
+      guestName: (j['guestName'] ?? guest['name'] ?? guest['phoneNumber'])?.toString(),
+      roomNumber: (j['roomNumber'] ?? booking['roomNumber'])?.toString(),
+      floorNumber: j['floorNumber'] is int
+          ? j['floorNumber'] as int
+          : booking['floorNumber'] is int
+              ? booking['floorNumber'] as int
+              : null,
+      estateName: (j['estateName'] ?? estate['title'])?.toString(),
+      bookingRef: (j['bookingRef'] ?? booking['_id'])?.toString(),
+      checkIn: (j['checkIn'] ?? booking['checkInDate'])?.toString(),
+      checkOut: (j['checkOut'] ?? booking['checkOutDate'])?.toString(),
+      memberTier: (j['memberTier'] ?? guest['memberTier'])?.toString(),
+      addOns: List<String>.from((j['addOns'] ?? booking['addOns'] ?? const []) as List),
+      vehicleNumber: (j['vehicleNumber'] ?? booking['vehicleNumber'])?.toString(),
+    );
+  }
 }
 
 class TodayBooking {

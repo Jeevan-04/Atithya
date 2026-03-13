@@ -56,6 +56,8 @@ class _StaffQrScannerScreenState extends State<StaffQrScannerScreen>
         'location': widget.location,
       });
 
+      if (!mounted) return;
+
       setState(() {
         _result = _ScanResult(
           allowed: data['allowed'] == true,
@@ -72,6 +74,7 @@ class _StaffQrScannerScreenState extends State<StaffQrScannerScreen>
         );
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _result = _ScanResult(
           allowed: false,
